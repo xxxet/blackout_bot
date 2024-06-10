@@ -1,0 +1,7 @@
+img2table==1.2.11
+requests==2.32.3
+easyocr==1.7.1
+pillow==10.3.0
+numpy==1.26.4
+matplotlib==3.9.0
+colormath==3.0.0

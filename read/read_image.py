@@ -1,8 +1,8 @@
+import cv2
 from easyocr import easyocr
 from img2table.document import Image
 from img2table.ocr import EasyOCR
-import cv2
-from PIL import Image as PILImage
+
 
 class ImageRead:
     def __init__(self):
@@ -91,14 +91,13 @@ class ImageRead:
         cv2.imshow('ImageWindow', table_img)
         cv2.waitKey()
 
-
     def example(self):
         img = Image(src="../group5.jpg", detect_rotation=True)
 
         # Extract tables
-        extracted_tables = img.extract_tables( implicit_rows=True,
-                                      borderless_tables=True,
-                                      min_confidence=30)
+        extracted_tables = img.extract_tables(implicit_rows=True,
+                                              borderless_tables=True,
+                                              min_confidence=30)
 
         table_img = cv2.imread("../group5.jpg")
         for table in extracted_tables:
@@ -107,6 +106,7 @@ class ImageRead:
                     cv2.rectangle(table_img, (cell.bbox.x1, cell.bbox.y1), (cell.bbox.x2, cell.bbox.y2), (255, 0, 0), 2)
         cv2.imshow('ImageWindow', table_img)
         cv2.waitKey()
+
 
 if __name__ == '__main__':
     ImageRead().example()

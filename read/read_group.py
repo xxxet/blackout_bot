@@ -1,3 +1,6 @@
+import csv
+import logging
+import os
 from math import sqrt
 
 import cv2
@@ -7,6 +10,17 @@ from img2table.document import Image
 from numpy import float32, unique
 
 
+def display_table(img):
+    cv2.imshow('ImageWindow', img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def visualise_cells(img, cell_l, cell_r):
+    cv2.rectangle(img, cell_l, cell_r,
+                  (255, 0, 0), 1)
+
+
 class ReadGroup:
 
     def __init__(self, image_path: str):
@@ -14,23 +28,23 @@ class ReadGroup:
         self.column_width = None
         self.extracted_tables = None
         self.image_path = image_path
+        file_name = os.path.basename(self.image_path)
+        self.csv_table = os.path.join(os.path.dirname(self.image_path),
+                                      os.path.splitext(file_name)[0] + ".csv")
         self.white_cell = (255, 255, 255)
         self.grey_cell = (238, 240, 239)
         self.black_cell = (210, 212, 214)
 
     def extract_table(self):
-        img = Image(src=self.image_path, detect_rotation=True)
-        # Extract tables
-        self.extracted_tables = img.extract_tables(implicit_rows=True,
-                                                   borderless_tables=True,
-                                                   min_confidence=50)
-
-    def find_column_width(self):
-        # skip first colum with labels (day name, time interval)
-        cell_1 = self.extracted_tables[0].content[0][1]
-        x1 = cell_1.bbox.x1
-        x2 = cell_1.bbox.x2
-        self.column_width = x2 - x1
+        if os.path.isfile(self.csv_table):
+            logging.info(f"{self.csv_table} already exists, skipped parsing")
+        else:
+            img = Image(src=self.image_path, detect_rotation=True)
+            self.extracted_tables = img.extract_tables(implicit_rows=True,
+                                                       borderless_tables=True,
+                                                       min_confidence=50)
+            self.read_rows()
+            self.save_to_csv()
 
     def read_rows(self):
         myimg = cv2.imread(self.image_path)
@@ -50,7 +64,7 @@ class ReadGroup:
                 cell_r = (header_cell.bbox.x2, cur_y + header_cell.bbox.x2 - header_cell.bbox.x1)
                 cropped_image = myimg[cell_l[1]:cell_r[1], cell_l[0]:cell_r[0]]
 
-                # self.display_table(cropped_image)
+                # display_table(cropped_image)
 
                 img_data = cropped_image.reshape(-1, 3)
                 criteria = (TERM_CRITERIA_MAX_ITER + TERM_CRITERIA_EPS, 10, 1.0)
@@ -61,31 +75,20 @@ class ReadGroup:
                 u_colors = unique(colours, axis=0, return_counts=True)
                 max_index = np.where(u_colors[1] == u_colors[1].max())[0][0]
                 max_fr_color = u_colors[0][max_index]
-
-                # self.visualise_cells(myimg, cell_l, cell_r)
+                visualise_cells(myimg, cell_l, cell_r)
                 self.determine_cell_type(max_fr_color, day)
             self.outage_table.append(day)
-        # self.display_table()
-
-    def visualise_cells(self, img, cell_l, cell_r):
-        cv2.rectangle(img, cell_l, cell_r,
-                      (255, 0, 0), 1)
-
-    def display_table(self, img):
-        cv2.imshow('ImageWindow', img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # display_table(myimg)
 
     def determine_cell_type(self, cell_color, day_array):
-        delta_black = sqrt(pow(cell_color[0] - self.black_cell[0], 2)
-                           + pow(cell_color[1] - self.black_cell[1], 2)
-                           + pow(cell_color[2] - self.black_cell[2], 2))
-        delta_grey = sqrt(pow(cell_color[0] - self.grey_cell[0], 2)
-                          + pow(cell_color[1] - self.grey_cell[1], 2)
-                          + pow(cell_color[2] - self.grey_cell[2], 2))
-        delta_white = sqrt(pow(cell_color[0] - self.white_cell[0], 2)
-                           + pow(cell_color[1] - self.white_cell[1], 2)
-                           + pow(cell_color[2] - self.white_cell[2], 2))
+        def calc_delta(cell_color1, cell_color2):
+            return sqrt(pow(cell_color1[0] - cell_color2[0], 2)
+                        + pow(cell_color1[1] - cell_color2[1], 2)
+                        + pow(cell_color1[2] - cell_color2[2], 2))
+
+        delta_black = calc_delta(cell_color, self.black_cell)
+        delta_grey = calc_delta(cell_color, self.grey_cell)
+        delta_white = calc_delta(cell_color, self.white_cell)
 
         if delta_black < 5:
             day_array.append("black")
@@ -96,11 +99,15 @@ class ReadGroup:
         else:
             day_array.append("und")
 
+    def save_to_csv(self):
+        field_names = [hour for hour in range(0, 24)]
+        with open(self.csv_table, 'w') as csvfile:
+            write = csv.writer(csvfile)
+            write.writerow(field_names)
+            write.writerows(self.outage_table)
+
 
 if __name__ == '__main__':
     rg = ReadGroup("../group4.png")
     rg.extract_table()
-    rg.find_column_width()
-    rg.read_rows()
-    print(rg.outage_table)
     pass

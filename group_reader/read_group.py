@@ -9,6 +9,8 @@ from cv2 import kmeans, TERM_CRITERIA_MAX_ITER, TERM_CRITERIA_EPS, KMEANS_RANDOM
 from img2table.document import Image
 from numpy import float32, unique
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+
 
 def display_table(img):
     cv2.imshow('ImageWindow', img)
@@ -108,6 +110,6 @@ class ReadGroup:
 
 
 if __name__ == '__main__':
-    rg = ReadGroup("../group4.png")
+    rg = ReadGroup("../group5.png")
     rg.extract_table()
     pass

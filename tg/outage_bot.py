@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 class OutageBot:
     jobs = {}
 
-    def __init__(self):
+    def __init__(self, group_table_path):
         self.tz = pytz.timezone('Europe/Kyiv')
-        self.time_finder = TimeFinder("../group5.png", 'Europe/Kyiv')
+        self.time_finder = TimeFinder(group_table_path, 'Europe/Kyiv')
         self.time_finder.read_schedule()
 
     def _add_job(self, chat_id, job):
@@ -55,11 +55,14 @@ class OutageBot:
             await update.message.reply_text(f'You are already subscribed, {chat_id}')
 
 
-if __name__ == '__main__':
-    outageBot = OutageBot()
-    application = Application.builder().token('968012733:AAF3HZPm6ZjlBMVLd9KllSW17Dg7nq0Z1tw').build()
-    start_handler = CommandHandler('start', outageBot.start_command)
-    stop_handler = CommandHandler('stop', outageBot.stop_command)
+def main(group_table_path, token):
+    outage_bot = OutageBot(group_table_path)
+    application = Application.builder().token(token).build()
+    start_handler = CommandHandler('start', outage_bot.start_command)
+    stop_handler = CommandHandler('stop', outage_bot.stop_command)
     application.add_handler(start_handler)
     application.add_handler(stop_handler)
     application.run_polling()
+
+
+

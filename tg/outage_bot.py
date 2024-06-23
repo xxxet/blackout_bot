@@ -21,6 +21,7 @@ class OutageBot:
         self.tz = pytz.timezone('Europe/Kyiv')
         self.time_finder = TimeFinder(group_table_path, 'Europe/Kyiv')
         self.time_finder.read_schedule()
+        self.notify_before = 15
 
     def _add_job(self, chat_id, job):
         self.jobs[chat_id] = job
@@ -28,10 +29,9 @@ class OutageBot:
     async def notification(self, context: ContextTypes.DEFAULT_TYPE):
         # Beep the person who called this alarm:
         await context.bot.send_message(chat_id=context.job.chat_id, text=context.job.data)
-        remind_time = self.find_next_remind_time()
+        remind_time, msg = self.time_finder.find_next_remind_time(time_delta=20)
         job = context.job_queue.run_once(self.notification, when=remind_time,
-                                         data=context.job.data,
-                                         chat_id=context.job.chat_id)
+                                         data=msg, chat_id=context.job.chat_id)
         self._add_job(context.job.chat_id, job)
 
     async def stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -47,10 +47,11 @@ class OutageBot:
         chat_id = update.message.chat_id
         # Set the alarm:
         if chat_id not in self.jobs:
-            remind_time, msg = self.time_finder.find_next_remind_time()
+            remind_time, msg = self.time_finder.find_next_remind_time(notify_before=15)
             await update.message.reply_text(
                 f'Thanks you subscription, next update: \n' + msg)
-            job = context.job_queue.run_once(self.notification, when=remind_time, data=msg, chat_id=chat_id)
+            job = context.job_queue.run_once(self.notification, when=remind_time,
+                                             data=msg, chat_id=chat_id)
             self._add_job(chat_id, job)
         else:
             await update.message.reply_text(f'You are already subscribed, {chat_id}')
@@ -58,7 +59,7 @@ class OutageBot:
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.message.chat_id
         if chat_id in self.jobs:
-            remind_time, msg = self.time_finder.find_next_remind_time()
+            remind_time, msg = self.time_finder.find_next_remind_time(delta_before=15)
             await update.message.reply_text(
                 f'You are subscribed, \n' + msg)
         else:

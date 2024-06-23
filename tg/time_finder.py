@@ -56,19 +56,20 @@ class TimeFinder:
 
         return new_time
 
-    def find_next_remind_time(self):
+    def find_next_remind_time(self, notify_before=0, time_delta=0):
         # now = datetime(2024, 6, 23, 23, 00, 00)
-        now = datetime.now(tz=self.tz)
+        now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
         zone_change_time = self.get_next_zone_change(now)
         old_zone = self.outage_table[now.weekday()].get(str(now.hour))
         new_zone = self.outage_table[zone_change_time.weekday()].get(str(zone_change_time.hour))
 
         diff = zone_change_time - now
-        if diff.total_seconds() / 60 <= 15:
-            return now, f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}"
+        if diff.total_seconds() / 60 <= notify_before:
+            return (now,
+                    f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
         else:
-            return zone_change_time - timedelta(
-                minutes=15), f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}"
+            return (zone_change_time - timedelta(minutes=notify_before),
+                    f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
 
 
 if __name__ == '__main__':

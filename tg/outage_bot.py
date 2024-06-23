@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import pytz
 from telegram import Update
@@ -54,15 +55,41 @@ class OutageBot:
         else:
             await update.message.reply_text(f'You are already subscribed, {chat_id}')
 
+    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.message.chat_id
+        if chat_id in self.jobs:
+            remind_time, msg = self.time_finder.find_next_remind_time()
+            await update.message.reply_text(
+                f'You are subscribed, \n' + msg)
+        else:
+            await update.message.reply_text(f'You are not subscribed, {chat_id}')
+
+    async def jobs_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.message.chat_id
+        if chat_id in self.jobs:
+            await update.message.reply_text(f'You are subscribed, {chat_id}')
+        else:
+            await update.message.reply_text(f'You are not subscribed, {chat_id}')
+        jobs = context.job_queue.jobs()
+        list_of_jobs = ""
+        list_of_jobs += f"Server time {datetime.now().strftime("%m-%d-%Y, %H:%M %Z")} \n"
+        list_of_jobs += f"Server time in EEST {datetime.now(self.tz).strftime("%m-%d-%Y, %H:%M %Z")} \n"
+        for job in jobs:
+            list_of_jobs += (f"Job queue: '{job.job.next_run_time.strftime("%m-%d-%Y, %H:%M %Z")}' '{job.job.id}' "
+                             f"'{job.user_id}' '{job.chat_id}' "
+                             f"'{job.name}' '{job.data}'\n")
+        await update.message.reply_text(f'{list_of_jobs}')
+
 
 def main(group_table_path, token):
     outage_bot = OutageBot(group_table_path)
     application = Application.builder().token(token).build()
     start_handler = CommandHandler('start', outage_bot.start_command)
     stop_handler = CommandHandler('stop', outage_bot.stop_command)
+    status_command = CommandHandler('status', outage_bot.status_command)
+    jobs_command = CommandHandler('jobs', outage_bot.jobs_command)
     application.add_handler(start_handler)
     application.add_handler(stop_handler)
+    application.add_handler(status_command)
+    application.add_handler(jobs_command)
     application.run_polling()
-
-
-

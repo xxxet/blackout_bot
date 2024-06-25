@@ -19,15 +19,13 @@ def display_table(img):
 
 
 def visualise_cells(img, cell_l, cell_r):
-    cv2.rectangle(img, cell_l, cell_r,
-                  (255, 0, 0), 1)
+    cv2.rectangle(img, cell_l, cell_r, (255, 0, 0), 1)
 
 
 class ReadGroup:
 
     def __init__(self, image_path: str):
         self.outage_table = []
-        self.column_width = None
         self.extracted_tables = None
         self.image_path = image_path
         file_name = os.path.basename(self.image_path)
@@ -49,8 +47,7 @@ class ReadGroup:
             self.save_to_csv()
 
     def read_rows(self):
-        myimg = cv2.imread(self.image_path)
-        myimg = cv2.cvtColor(myimg, cv2.COLOR_BGR2RGB)
+        myimg = cv2.cvtColor(cv2.imread(self.image_path), cv2.COLOR_BGR2RGB)
 
         table = self.extracted_tables[0]
         header_row = table.content[0]
@@ -70,9 +67,9 @@ class ReadGroup:
 
                 img_data = cropped_image.reshape(-1, 3)
                 criteria = (TERM_CRITERIA_MAX_ITER + TERM_CRITERIA_EPS, 10, 1.0)
-                compactness, labels, centers = kmeans(data=img_data.astype(float32), K=5, bestLabels=None,
-                                                      criteria=criteria,
-                                                      attempts=10, flags=KMEANS_RANDOM_CENTERS)
+                _, labels, centers = kmeans(data=img_data.astype(float32), K=5, bestLabels=None,
+                                            criteria=criteria,
+                                            attempts=10, flags=KMEANS_RANDOM_CENTERS)
                 colours = centers[labels].reshape(-1, 3)
                 u_colors = unique(colours, axis=0, return_counts=True)
                 max_index = np.where(u_colors[1] == u_colors[1].max())[0][0]
@@ -102,8 +99,8 @@ class ReadGroup:
             day_array.append("und")
 
     def save_to_csv(self):
-        field_names = [hour for hour in range(0, 24)]
-        with open(self.csv_table, 'w') as csvfile:
+        field_names = list(range(0, 24))
+        with open(self.csv_table, mode='w', encoding="UTF-8") as csvfile:
             write = csv.writer(csvfile)
             write.writerow(field_names)
             write.writerows(self.outage_table)
@@ -112,4 +109,3 @@ class ReadGroup:
 if __name__ == '__main__':
     rg = ReadGroup("../group5.png")
     rg.extract_table()
-    pass

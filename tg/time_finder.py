@@ -17,7 +17,7 @@ class TimeFinder:
 
     def read_schedule(self):
         self.rg.extract_table()
-        with open(self.rg.csv_table, mode='r') as file:
+        with open(self.rg.csv_table, mode='r', encoding="UTF-8") as file:
             for row in csv.DictReader(file):
                 self.outage_table.append(row)
 
@@ -45,6 +45,7 @@ class TimeFinder:
                 if hour is not None:
                     return hour, day_ind
                 start_h = 0
+            raise ValueError("No hour and day found in zone table")
 
         change_h, change_d = look_for_change_in_week(now.weekday(), now.hour)
         if change_d >= now.weekday():
@@ -67,13 +68,11 @@ class TimeFinder:
         if diff.total_seconds() / 60 <= notify_before:
             return (now,
                     f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
-        else:
-            return (zone_change_time - timedelta(minutes=notify_before),
-                    f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
+        return (zone_change_time - timedelta(minutes=notify_before),
+                f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
 
 
 if __name__ == '__main__':
     tf = TimeFinder("../group5.png", 'Europe/Kyiv')
     tf.read_schedule()
     print(tf.find_next_remind_time())
-    pass

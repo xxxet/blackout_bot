@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytz
 from telegram import Update
@@ -26,7 +26,8 @@ class OutageBot:
     async def notification(self, context: ContextTypes.DEFAULT_TYPE):
         chat_id = context.job.chat_id
         await context.bot.send_message(chat_id=chat_id, text=context.job.data)
-        remind_time, msg = self.time_finder.find_next_remind_time(time_delta=self.before_time + 5)
+        remind_time, msg = self.time_finder.find_next_remind_time(notify_before=self.before_time,
+                                                                  time_delta=self.before_time + 5)
         context.job_queue.run_once(self.notification, name=str(chat_id), when=remind_time,
                                    data=msg, chat_id=chat_id)
 

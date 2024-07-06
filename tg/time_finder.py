@@ -16,7 +16,7 @@ class TimeFinder:
         self.outage_table = []
 
     def read_schedule(self):
-        self.rg.extract_table()
+        self.rg.save_to_csv()
         with open(self.rg.csv_table, mode='r', encoding="UTF-8") as file:
             for row in csv.DictReader(file):
                 self.outage_table.append(row)

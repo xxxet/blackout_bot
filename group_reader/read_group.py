@@ -26,7 +26,7 @@ class ReadGroup:
 
     def __init__(self, image_path: str):
         self.outage_table = []
-        self.extracted_tables = None
+        self.extracted_table = None
         self.image_path = image_path
         file_name = os.path.basename(self.image_path)
         self.csv_table = os.path.join(os.path.dirname(self.image_path),
@@ -35,21 +35,17 @@ class ReadGroup:
         self.grey_cell = (238, 240, 239)
         self.black_cell = (210, 212, 214)
 
-    def extract_table(self):
-        if os.path.isfile(self.csv_table):
-            logging.info(f"{self.csv_table} already exists, skipped parsing")
-        else:
-            img = Image(src=self.image_path, detect_rotation=True)
-            self.extracted_tables = img.extract_tables(implicit_rows=True,
-                                                       borderless_tables=True,
-                                                       min_confidence=50)
-            self.read_rows()
-            self.save_to_csv()
+    def extract(self):
+        img = Image(src=self.image_path, detect_rotation=True)
+        self.extracted_table = img.extract_tables(implicit_rows=True,
+                                                  borderless_tables=True,
+                                                  min_confidence=50)
+        self.__read_rows()
 
-    def read_rows(self):
+    def __read_rows(self):
         myimg = cv2.cvtColor(cv2.imread(self.image_path), cv2.COLOR_BGR2RGB)
 
-        table = self.extracted_tables[0]
+        table = self.extracted_table[0]
         header_row = table.content[0]
         # skip first colum and header with labels (day name, time interval)
         table.content.popitem(last=False)
@@ -89,16 +85,22 @@ class ReadGroup:
         delta_grey = calc_delta(cell_color, self.grey_cell)
         delta_white = calc_delta(cell_color, self.white_cell)
 
-        if delta_black < 5:
+        if delta_black < 7:
             day_array.append("black")
-        elif delta_grey < 5:
+        elif delta_grey < 7:
             day_array.append("grey")
-        elif delta_white < 5:
+        elif delta_white < 7:
             day_array.append("white")
         else:
             day_array.append("und")
 
-    def save_to_csv(self):
+    def save_to_csv(self, check_csv_exists=True):
+        if check_csv_exists:
+            if os.path.isfile(self.csv_table):
+                logging.info(f"{self.csv_table} already exists, skipped parsing")
+                return
+
+        self.extract()
         field_names = list(range(0, 24))
         with open(self.csv_table, mode='w', encoding="UTF-8") as csvfile:
             write = csv.writer(csvfile)
@@ -107,5 +109,9 @@ class ReadGroup:
 
 
 if __name__ == '__main__':
-    rg = ReadGroup("../group5.png")
-    rg.extract_table()
+    ReadGroup("../resources/group1.jpg").save_to_csv(check_csv_exists=True)
+    ReadGroup("../resources/group2.jpg").save_to_csv(check_csv_exists=True)
+    ReadGroup("../resources/group3.jpg").save_to_csv(check_csv_exists=True)
+    ReadGroup("../resources/group4.jpg").save_to_csv(check_csv_exists=True)
+    ReadGroup("../resources/group5.jpg").save_to_csv(check_csv_exists=True)
+    ReadGroup("../resources/group6.jpg").save_to_csv(check_csv_exists=True)

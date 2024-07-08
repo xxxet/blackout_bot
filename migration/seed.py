@@ -1,15 +1,14 @@
-import csv
 import logging
 import pathlib
 
 from group_reader.read_group import ReadGroup
-from sql.config import get_session_maker
+from config import get_session_maker, ZONES
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
 from sql.models.user import User
 from sql.models.zone import Zone
-from sql.sql_service import DayService, ZoneService, GroupService, UserService, HourService
+from sql.sql_service import DayService, ZoneService, GroupService, HourService
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
@@ -25,7 +24,7 @@ def seed_groups():
 
         zone_serv = ZoneService(session)
         # Insert zones into Zones table
-        for zone in ["black", "grey", "white"]:
+        for zone in ZONES:
             zone_serv.add(zone)
 
         group_serv = GroupService(session)
@@ -34,7 +33,7 @@ def seed_groups():
         files = [f for f in pathlib.Path("resources").iterdir()
                  if f.is_file()]
         for file in files:
-            group_serv.add(file.stem)
+            group_serv.add(file.stem, custom=False)
             group = group_serv.get_group(file.stem)
             rg = ReadGroup(str(file))
             rg.extract()
@@ -46,25 +45,6 @@ def seed_groups():
                 for hour, zone in enumerate(row):
                     zone = zone_serv.get_zone(zone)
                     hour_serv.add(hour, zone, day, group)
-        #
-        # # for grp in ["group_5"]:
-        # #     group_serv.add(grp)
-        #
-        # # user_serv = UserService(session)
-        # group_5 = group_serv.get_group("group_5")
-        # # user_serv.add("tg1", group_5)
-        # # Read CSV and populate the TimeSeries table
-        # with open('group5.csv', newline='') as csvfile:
-        #     csvreader = csv.reader(csvfile)
-        #     headers = next(csvreader)  # Skip the header row
-        #     hour_serv = HourService(session)
-        #     for day_index, row in enumerate(csvreader):
-        #         logging.info(f"adding {day_index} {row}")
-        #         day_id = day_index + 1  # Day IDs start from 1 to 7
-        #         day = day_serv.get(day_id)
-        #         for hour, zone in enumerate(row):
-        #             zone = zone_serv.get_zone(zone)
-        #             hour_serv.add(hour, zone, day, group_5)
 
         session.commit()
 
@@ -80,10 +60,5 @@ def delete_groups():
         session.commit()
 
 
-def readfiles():
-    files = [f for f in pathlib.Path("../resources").iterdir() if f.is_file()]
-    pass
-
-
 if __name__ == "__main__":
-    readfiles()
+    seed_groups()

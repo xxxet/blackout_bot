@@ -7,7 +7,7 @@ import pytz
 from group_reader.read_group import ReadGroup
 
 
-class TimeFinder:
+class CsvTimeFinder:
     def __init__(self, group_table_path, timezone):
         self.csv_file = None
         self.group_table_path = group_table_path
@@ -73,6 +73,6 @@ class TimeFinder:
 
 
 if __name__ == '__main__':
-    tf = TimeFinder("../group5.png", 'Europe/Kyiv')
+    tf = CsvTimeFinder("../group5.png", 'Europe/Kyiv')
     tf.read_schedule()
     print(tf.find_next_remind_time())

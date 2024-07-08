@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 
-from sql.config import Base
+from config import Base
 
 
 class Day(Base):

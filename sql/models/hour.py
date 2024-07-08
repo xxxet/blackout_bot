@@ -1,8 +1,8 @@
 
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy.orm import relationship
 
-from sql.config import Base
+from config import Base
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.zone import Zone

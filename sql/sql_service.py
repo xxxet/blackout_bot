@@ -1,8 +1,8 @@
 import csv
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from sql.config import Base
+from config import Base
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
@@ -31,8 +31,8 @@ class GroupService:
     def get_group(self, name: str):
         return self.db.query(Group).filter(Group.group_name == name).first()
 
-    def add(self, name: str):
-        grp = Group(group_name=name)
+    def add(self, name: str, custom: bool):
+        grp = Group(group_name=name, custom=custom)
         self.db.add(grp)
         self.db.commit()
         self.db.refresh(grp)
@@ -74,11 +74,16 @@ class HourService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_hours_for_day(self, day: Day):
-        return self.db.query(Hour).filter(Hour.day_id == day.day_id)
+    def get_hours_for_day_group(self, day: Day, grp: Group):
+        return self.db.query(Hour).filter(Hour.day_id == day.day_id,
+                                          Group.group_name == grp.group_name)
 
-    def get_hour_for_group(self, group: Group):
-        return self.db.query(Hour).filter(Hour.group_id == group.group_id).first()
+    def get_hours_for_day(self, day: Day):
+        return self.db.query(Hour).filter(Hour.day_id == day.day_id).all()
+
+    def get_hours_for_group(self, group: Group):
+        return (self.db.query(Hour).filter(Hour.group_id == group.group_id)
+                .options(joinedload(Hour.zone), joinedload(Hour.day))).all()
 
     def add(self, hour: int, zone: Zone, day: Day, group: Group):
         hour = Hour(hour=hour, zone=zone,

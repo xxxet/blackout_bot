@@ -27,6 +27,7 @@ def upgrade() -> None:
     )
     op.create_table('groups',
     sa.Column('group_id', sa.Integer(), nullable=False),
+    sa.Column('custom', sa.Boolean(), nullable=True),
     sa.Column('group_name', sa.String(), nullable=True),
     sa.PrimaryKeyConstraint('group_id')
     )

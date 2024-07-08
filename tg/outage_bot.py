@@ -5,7 +5,7 @@ import pytz
 from telegram import Update
 from telegram.ext import CommandHandler, Application, ContextTypes
 
-from tg.time_finder import TimeFinder
+from tg.csv_time_finder import CsvTimeFinder
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -19,7 +19,7 @@ class OutageBot:
     def __init__(self, group_table_path):
         timezone_str = 'Europe/Kyiv'
         self.tz = pytz.timezone(timezone_str)
-        self.time_finder = TimeFinder(group_table_path, timezone_str)
+        self.time_finder = CsvTimeFinder(group_table_path, timezone_str)
         self.time_finder.read_schedule()
         self.before_time = 15
 

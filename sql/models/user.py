@@ -1,13 +1,14 @@
-from sqlalchemy import Column, Integer, ForeignKey, String
-from sqlalchemy.orm import relationship
+from typing import List
+
+from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy.orm import relationship, Mapped
 
 from config import Base
-from sql.models.group import Group
 
 
 class User(Base):
     __tablename__ = 'users'
     user_id = Column(Integer, primary_key=True)
     tg_id = Column(String)
-    group_id = Column(Integer, ForeignKey('groups.group_id'))
-    group = relationship(Group)
+    show_help = Column(Boolean)
+    subs: Mapped[List["Subscription"]] = relationship(back_populates="user")

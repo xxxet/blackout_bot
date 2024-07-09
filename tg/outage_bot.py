@@ -49,6 +49,16 @@ class OutageBot:
         else:
             await update.message.reply_text(f'You are already subscribed, {chat_id}')
 
+    async def subscribe_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.message.chat_id
+        if not context.job_queue.get_jobs_by_name(str(chat_id)):
+            remind_time, msg = self.time_finder.find_next_remind_time(notify_before=self.before_time)
+            await update.message.reply_text(f'Thanks for subscription, next update: \n {msg}')
+            context.job_queue.run_once(self.notification, name=str(chat_id), when=remind_time,
+                                       data=msg, chat_id=chat_id)
+        else:
+            await update.message.reply_text(f'You are already subscribed, {chat_id}')
+
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.message.chat_id
         if context.job_queue.get_jobs_by_name(str(chat_id)):
@@ -79,10 +89,12 @@ def main(group_table_path, token):
     outage_bot = OutageBot(group_table_path)
     application = Application.builder().token(token).build()
     start_handler = CommandHandler('start', outage_bot.start_command)
+    subscribe_handler = CommandHandler('subscribe', outage_bot.start_command)
     stop_handler = CommandHandler('stop', outage_bot.stop_command)
     status_command = CommandHandler('status', outage_bot.status_command)
     jobs_command = CommandHandler('jobs', outage_bot.jobs_command)
     application.add_handler(start_handler)
+    application.add_handler(subscribe_handler)
     application.add_handler(stop_handler)
     application.add_handler(status_command)
     application.add_handler(jobs_command)

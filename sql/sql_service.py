@@ -6,6 +6,7 @@ from config import Base
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
+from sql.models.subscription import Subscription
 from sql.models.user import User
 from sql.models.zone import Zone
 
@@ -38,6 +39,21 @@ class GroupService:
         self.db.refresh(grp)
 
 
+class SubsService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get_subs(self, user: User):
+        return self.db.query(Subscription).filter(Subscription.user_id == user.user_id).all()
+
+    def add(self, user: User, grp: Group):
+        sub = Subscription(user_id=user.user_id, group_id=grp.group_id)
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(sub)
+        return sub
+
+
 class UserService:
     def __init__(self, db: Session):
         self.db = db
@@ -45,8 +61,8 @@ class UserService:
     def get_user(self, user_id: int):
         return self.db.query(User).filter(User.id == user_id).first()
 
-    def add(self, tgid: str, group: Group):
-        user = User(tg_id=tgid, group=group)
+    def add(self, tgid: str):
+        user = User(tg_id=tgid, show_help=False)
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)

@@ -6,6 +6,7 @@ from config import get_session_maker, ZONES
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
+from sql.models.subscription import Subscription
 from sql.models.user import User
 from sql.models.zone import Zone
 from sql.sql_service import DayService, ZoneService, GroupService, HourService
@@ -55,6 +56,7 @@ def delete_groups():
         session.query(Hour).delete()
         session.query(Zone).delete()
         session.query(Group).delete()
+        session.query(Subscription).delete()
         session.query(User).delete()
         session.query(Day).delete()
         session.commit()

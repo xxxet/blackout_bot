@@ -8,7 +8,6 @@ from config import Base
 
 class User(Base):
     __tablename__ = 'users'
-    user_id = Column(Integer, primary_key=True)
-    tg_id = Column(String)
+    tg_id = Column(String, primary_key=True)
     show_help = Column(Boolean)
     subs: Mapped[List["Subscription"]] = relationship(back_populates="user")

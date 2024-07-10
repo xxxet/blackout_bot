@@ -1,8 +1,7 @@
-import csv
+from typing import List
 
 from sqlalchemy.orm import Session, joinedload
 
-from config import Base
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
@@ -43,30 +42,44 @@ class SubsService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_subs(self, user: User):
-        return self.db.query(Subscription).filter(Subscription.user_id == user.user_id).all()
+    def get_subs_for_user(self, user: User) -> List[Subscription]:
+        return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id)
+                .options(joinedload(Subscription.group)).all())
+
+    def get_subs_for_user_grp(self, user: User, grp: Group) -> List[Subscription]:
+        return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id,
+                                                   Subscription.group_id == grp.group_id)
+                .options(joinedload(Subscription.group)).all())
 
     def add(self, user: User, grp: Group):
-        sub = Subscription(user_id=user.user_id, group_id=grp.group_id)
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(sub)
-        return sub
+        ex_sub = self.get_subs_for_user_grp(user, grp)
+        if len(ex_sub) == 0:
+            sub = Subscription(user_tg_id=user.tg_id, group_id=grp.group_id)
+            self.db.add(sub)
+            self.db.commit()
+            self.db.refresh(sub)
+            return sub
+        else:
+            return ex_sub
 
 
 class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user(self, user_id: int):
-        return self.db.query(User).filter(User.id == user_id).first()
+    def get_user(self, tg_id: str):
+        return self.db.query(User).filter(User.tg_id == tg_id).options(joinedload(User.subs)).first()
 
-    def add(self, tgid: str):
-        user = User(tg_id=tgid, show_help=False)
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
+    def add(self, tg_id: str, show_help=False):
+        ex_user = self.get_user(tg_id)
+        if ex_user is None:
+            user = User(tg_id=tg_id, show_help=show_help)
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        else:
+            return ex_user
 
 
 class DayService:
@@ -107,55 +120,3 @@ class HourService:
         self.db.add(hour)
         self.db.commit()
         self.db.refresh(hour)
-
-
-def seed_db():
-    from sqlalchemy.orm import sessionmaker
-    from sqlalchemy import create_engine
-    # Days of the week
-    days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    # session = get_db()
-
-    engine = create_engine('sqlite:///blackout.db')
-    Base.metadata.create_all(engine)
-    session_maker = sessionmaker(bind=engine)
-    session = session_maker()
-    day_serv = DayService(session)
-
-    # Insert days into Days table
-    for day_name in days_of_week:
-        day_serv.add(day_name)
-
-    zone_serv = ZoneService(session)
-    # Insert zones into Zones table
-    for zone in ["black", "grey", "white"]:
-        zone_serv.add(zone)
-
-    group_serv = GroupService(session)
-    # Insert groups into Groups table
-    for grp in ["group_5"]:
-        group_serv.add(grp)
-
-    user_serv = UserService(session)
-    group_5 = group_serv.get_group("group_5")
-    user_serv.add("tg1", group_5)
-
-    # Read CSV and populate the TimeSeries table
-    with open('../group5.csv', newline='') as csvfile:
-        csvreader = csv.reader(csvfile)
-        headers = next(csvreader)  # Skip the header row
-        hour_serv = HourService(session)
-        for day_index, row in enumerate(csvreader):
-            day_id = day_index + 1  # Day IDs start from 1 to 7
-            day = day_serv.get(day_id)
-            for hour, zone in enumerate(row):
-                zone = zone_serv.get_zone(zone)
-                hour_serv.add(hour, zone, day, group_5)
-                # timeseries = Hours(day_id=day_id, hour=hour, zone=zone)
-                # session.add(timeseries)
-
-    session.close()
-
-
-if __name__ == '__main__':
-    seed_db()

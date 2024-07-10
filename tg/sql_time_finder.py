@@ -44,6 +44,7 @@ class SqlTimeFinder:
         zone_change_time = now.replace(minute=0) + timedelta(hours=hours_to_change)
         new_zone = change_h.zone.zone_name
         diff = zone_change_time - now
+        # if notif should be sent in less than notify_before, return remind time = now
         if diff.total_seconds() / 60 <= notify_before:
             return (now,
                     f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")

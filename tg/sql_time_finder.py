@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from datetime import timedelta
 
@@ -5,6 +6,18 @@ import pytz
 
 from config import get_session_maker
 from sql.sql_service import HourService, GroupService
+
+
+@dataclass
+class RemindObj:
+    group: str
+    old_zone: str
+    new_zone: str
+    remind_time: datetime
+    change_time: datetime
+
+    def get_msg(self):
+        return f"Zone is going to change from {self.old_zone} to {self.new_zone} at {self.change_time.strftime("%H:%M")}"
 
 
 class SqlTimeFinder:
@@ -36,7 +49,7 @@ class SqlTimeFinder:
             if hour.zone.zone_name != cur_zone:
                 return hour, len(self.hours_in_week) - cur_hour_ind + self.hours_in_week.index(hour)
 
-    def find_next_remind_time(self, notify_before=0, time_delta=0):
+    def find_next_remind_time(self, notify_before=0, time_delta=0) -> RemindObj:
         # now = datetime(2024, 7, 14, 21, 00, 00)
         now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
         _, old_zone = self.get_hour(now.weekday(), now.hour)
@@ -46,7 +59,7 @@ class SqlTimeFinder:
         diff = zone_change_time - now
         # if notif should be sent in less than notify_before, return remind time = now
         if diff.total_seconds() / 60 <= notify_before:
-            return (now,
-                    f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
-        return (zone_change_time - timedelta(minutes=notify_before),
-                f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
+            return RemindObj(group=self.group_name, old_zone=old_zone, new_zone=new_zone,
+                             change_time=zone_change_time, remind_time=now)
+        return RemindObj(group=self.group_name, old_zone=old_zone, new_zone=new_zone,
+                         change_time=zone_change_time, remind_time=zone_change_time - timedelta(minutes=notify_before))

@@ -2,6 +2,7 @@ from typing import List
 
 from sqlalchemy.orm import Session, joinedload
 
+import config
 from sql.models.day import Day
 from sql.models.group import Group
 from sql.models.hour import Hour
@@ -28,7 +29,7 @@ class GroupService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_group(self, name: str):
+    def get_group(self, name: str) -> Group:
         return self.db.query(Group).filter(Group.group_name == name).first()
 
     def add(self, name: str, custom: bool):
@@ -42,11 +43,28 @@ class SubsService:
     def __init__(self, db: Session):
         self.db = db
 
+    def delete(self, sub: Subscription):
+        self.db.delete(sub)
+        self.db.commit()
+        self.db.flush()
+
+    def get_subs(self) -> List[Subscription]:
+        return (self.db.query(Subscription)
+                .options(joinedload(Subscription.group)).all())
+
+    def get_subs_for_tgid(self, tgid: str) -> List[Subscription]:
+        return (self.db.query(Subscription).filter(Subscription.user_tg_id == tgid)
+                .options(joinedload(Subscription.group)).all())
+
     def get_subs_for_user(self, user: User) -> List[Subscription]:
+        if user is None:
+            return []
         return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id)
                 .options(joinedload(Subscription.group)).all())
 
     def get_subs_for_user_grp(self, user: User, grp: Group) -> List[Subscription]:
+        if user is None or grp is None:
+            return []
         return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id,
                                                    Subscription.group_id == grp.group_id)
                 .options(joinedload(Subscription.group)).all())
@@ -80,6 +98,13 @@ class UserService:
             return user
         else:
             return ex_user
+
+    def delete(self, user: User):
+        if user is None:
+            return
+        self.db.delete(user)
+        self.db.commit()
+        self.db.flush()
 
 
 class DayService:
@@ -120,3 +145,17 @@ class HourService:
         self.db.add(hour)
         self.db.commit()
         self.db.refresh(hour)
+
+
+class SqlOperationsFacade:
+
+    @staticmethod
+    def get_subs_for_user_group(tgid: str, group_name: str):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            subs_serv = SubsService(session)
+            user_serv = UserService(session)
+            group_serv = GroupService(session)
+            group = group_serv.get_group(group_name)
+            user = user_serv.get_user(tgid)
+            return subs_serv.get_subs_for_user_grp(user, group)

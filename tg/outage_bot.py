@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, Application, ContextTypes
 
 import config
-from sql.sql_service import GroupService, SubsService, UserService, SqlOperationsFacade
+from sql.sql_service import SqlOperationsFacade
 from tg.sql_time_finder import SqlTimeFinder
 
 logging.basicConfig(
@@ -34,7 +34,7 @@ class OutageBot:
             return self.time_finders[group]
 
     async def notification(self, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = context.job.chat_id
+        chat_id = str(context.job.chat_id)
         remind_obj = context.job.data
         await self.send_notif_message(chat_id, context, remind_obj)
         remind_obj = self.get_time_finder(remind_obj.group).find_next_remind_time(notify_before=self.before_time,
@@ -46,39 +46,24 @@ class OutageBot:
         await context.bot.send_message(chat_id=chat_id, text=f"Change for {remind_obj.group}:\n{remind_obj.get_msg()}")
 
     async def unsubscribe(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.message.chat_id
-        req_group = " ".join(context.args)
-        if req_group == "":
+        chat_id = str(update.message.chat_id)
+        group = " ".join(context.args)
+        if group == "":
             await update.message.reply_text(f'unsubscribe command should be used with group name')
             return
         deleted_jobs = list(map(lambda job: job.schedule_removal(),
-                                filter(lambda job: job.data.group == req_group,
+                                filter(lambda job: job.data.group == group,
                                        context.job_queue.get_jobs_by_name(str(chat_id)))))
         if len(deleted_jobs) > 0:
             await update.message.reply_text(f'Removed jobs: {len(deleted_jobs)}')
-        # subs = SqlOperationsFacade.get_subs_for_user_group(chat_id, req_group)
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            subs_serv = SubsService(session)
-            user_serv = UserService(session)
-            group_serv = GroupService(session)
-            group = group_serv.get_group(req_group)
-            user = user_serv.get_user(chat_id)
-            subs = subs_serv.get_subs_for_user_grp(user, group)
-            for sub in subs:
-                subs_serv.delete(sub)
-                subs.remove(sub)
-            if subs_serv.get_subs_for_user(user) == 0:
-                user_serv.delete(user)
+        SqlOperationsFacade.delete_subs_for_user_group(chat_id, group)
+        SqlOperationsFacade.delete_no_sub_user(chat_id)
 
     async def stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.message.chat_id
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            user_serv = UserService(session)
-            user = user_serv.get_user(chat_id)
-            user_serv.delete(user)
-        list(map(lambda job: job.schedule_removal(), context.job_queue.get_jobs_by_name(str(chat_id))))
+        chat_id = str(update.message.chat_id)
+        deleted_jobs = list(map(lambda job: job.schedule_removal(), context.job_queue.get_jobs_by_name(str(chat_id))))
+        await update.message.reply_text(f'Removed jobs: {len(deleted_jobs)}')
+        SqlOperationsFacade.delete_user_with_subs(chat_id)
         await update.message.reply_text('Stopped notifications for all groups')
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -87,48 +72,32 @@ class OutageBot:
                                         f'/subscribe group_name')
 
     async def subscribe_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.message.chat_id
-        req_group = " ".join(context.args)
-        if req_group == "":
-            await update.message.reply_text(f'Subscribe command should be used with group name')
+        chat_id = str(update.message.chat_id)
+        group = " ".join(context.args)
+        if group == "":
+            await update.message.reply_text("Subscribe command should be used with group name")
             return
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            grp_serv = GroupService(session)
-            grp = grp_serv.get_group(req_group)
-            if grp is None:
-                await update.message.reply_text(f'No such group {req_group} added yet')
-                return
-            sub_serv = SubsService(session)
-            user_serv = UserService(session)
-            user = user_serv.add(str(chat_id))
-            if len(sub_serv.get_subs_for_user_grp(user, grp)) > 0:
-                await update.message.reply_text(f'You are already subscribed to {req_group}')
-                return
-            sub_serv.add(user, grp)
-            remind_obj = self.get_time_finder(req_group).find_next_remind_time(notify_before=self.before_time)
+        if SqlOperationsFacade.subscribe_user(chat_id, group):
+            remind_obj = self.get_time_finder(group).find_next_remind_time(notify_before=self.before_time)
             context.job_queue.run_once(self.notification, name=str(chat_id), when=remind_obj.remind_time,
                                        data=remind_obj, chat_id=chat_id)
-            await update.message.reply_text(f'You are subscribed to {req_group}')
+            await update.message.reply_text(f"You are subscribed to {group}")
             self.send_notif_message(chat_id, context, remind_obj)
+        else:
+            await update.message.reply_text(f"No such group {group} added yet")
 
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.message.chat_id
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            sub_serv = SubsService(session)
-            user_serv = UserService(session)
-            subs = sub_serv.get_subs_for_user(user_serv.get_user(chat_id))
-            if len(subs) == 0:
-                await update.message.reply_text(f'You are not subscribed, {chat_id}')
-            for sub in subs:
-                remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
-                    notify_before=self.before_time)
-                self.send_notif_message(chat_id, context, remind_obj)
-
+        chat_id = str(update.message.chat_id)
+        subs = SqlOperationsFacade.get_subs_for_user(chat_id)
+        if len(subs) == 0:
+            await update.message.reply_text(f'You are not subscribed, {chat_id}')
+        for sub in subs:
+            remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
+                notify_before=self.before_time)
+            await self.send_notif_message(chat_id, context, remind_obj)
 
     async def jobs_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = update.message.chat_id
+        chat_id = str(update.message.chat_id)
         if context.job_queue.get_jobs_by_name(str(chat_id)):
             await update.message.reply_text(f'You are subscribed, {chat_id}')
         else:
@@ -145,15 +114,18 @@ class OutageBot:
         await update.message.reply_text(f'{list_of_jobs}')
 
     def create_jobs(self, app: Application):
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            sub_serv = SubsService(session)
-            subs = sub_serv.get_subs()
-            for sub in subs:
-                remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
-                    notify_before=self.before_time)
-                app.job_queue.run_once(self.notification, name=str(sub.user_tg_id), when=remind_obj.remind_time,
-                                       data=remind_obj, chat_id=sub.user_tg_id)
+        subs = SqlOperationsFacade.get_all_subs()
+        for sub in subs:
+            remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
+                notify_before=self.before_time)
+            app.job_queue.run_once(self.notification, name=str(sub.user_tg_id), when=remind_obj.remind_time,
+                                   data=remind_obj, chat_id=sub.user_tg_id)
+
+    async def today_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
+
+    async def tomorrow_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
 
 
 def main(token):
@@ -164,7 +136,8 @@ def main(token):
     unsubscribe = CommandHandler('unsubscribe', outage_bot.unsubscribe)
     stop = CommandHandler('stop', outage_bot.stop_command)
     status_command = CommandHandler('status', outage_bot.status_command)
-    jobs_command = CommandHandler('jobs', outage_bot.jobs_command)
+    today = CommandHandler('today', outage_bot.today_command)
+    tomorrow = CommandHandler('tomorrow', outage_bot.tomorrow_command)
     jobs_command = CommandHandler('jobs', outage_bot.jobs_command)
     application.add_handler(start_handler)
     application.add_handler(subscribe_handler)
@@ -172,5 +145,7 @@ def main(token):
     application.add_handler(status_command)
     application.add_handler(jobs_command)
     application.add_handler(stop)
+    application.add_handler(today)
+    application.add_handler(tomorrow)
     outage_bot.create_jobs(application)
     application.run_polling()

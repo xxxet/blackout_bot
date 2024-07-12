@@ -52,8 +52,8 @@ class SubsService:
         return (self.db.query(Subscription)
                 .options(joinedload(Subscription.group)).all())
 
-    def get_subs_for_tgid(self, tgid: str) -> List[Subscription]:
-        return (self.db.query(Subscription).filter(Subscription.user_tg_id == tgid)
+    def get_subs_for_tgid(self, tg_id: str) -> List[Subscription]:
+        return (self.db.query(Subscription).filter(Subscription.user_tg_id == tg_id)
                 .options(joinedload(Subscription.group)).all())
 
     def get_subs_for_user(self, user: User) -> List[Subscription]:
@@ -77,8 +77,7 @@ class SubsService:
             self.db.commit()
             self.db.refresh(sub)
             return sub
-        else:
-            return ex_sub
+        return ex_sub
 
 
 class UserService:
@@ -96,8 +95,7 @@ class UserService:
             self.db.commit()
             self.db.refresh(user)
             return user
-        else:
-            return ex_user
+        return ex_user
 
     def delete(self, user: User):
         if user is None:
@@ -150,12 +148,61 @@ class HourService:
 class SqlOperationsFacade:
 
     @staticmethod
-    def get_subs_for_user_group(tgid: str, group_name: str):
+    def delete_subs_for_user_group(tg_id: str, group_name: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             subs_serv = SubsService(session)
             user_serv = UserService(session)
             group_serv = GroupService(session)
             group = group_serv.get_group(group_name)
-            user = user_serv.get_user(tgid)
-            return subs_serv.get_subs_for_user_grp(user, group)
+            user = user_serv.get_user(tg_id)
+            subs = subs_serv.get_subs_for_user_grp(user, group)
+            for sub in subs:
+                subs_serv.delete(sub)
+
+    @staticmethod
+    def delete_no_sub_user(tg_id: str):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_serv = UserService(session)
+            subs_serv = SubsService(session)
+            user = user_serv.get_user(tg_id)
+            if subs_serv.get_subs_for_user(user) == 0:
+                user_serv.delete(user)
+
+    @staticmethod
+    def delete_user_with_subs(tg_id: str):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_serv = UserService(session)
+            user = user_serv.get_user(tg_id)
+            user_serv.delete(user)
+
+    @staticmethod
+    def subscribe_user(tg_id: str, group_name: str):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_serv = UserService(session)
+            subs_serv = SubsService(session)
+            grp_serv = GroupService(session)
+            user = user_serv.add(tg_id)
+            grp = grp_serv.get_group(group_name)
+            if grp is None:
+                return False
+            subs_serv.add(user, grp)
+            return True
+
+    @staticmethod
+    def get_all_subs():
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            subs_serv = SubsService(session)
+            return subs_serv.get_subs()
+
+    @staticmethod
+    def get_subs_for_user(tg_id: str):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            subs_serv = SubsService(session)
+            user_serv = UserService(session)
+            return subs_serv.get_subs_for_user(user_serv.get_user(tg_id))

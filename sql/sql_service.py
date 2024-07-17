@@ -11,7 +11,7 @@ from sql.models.user import User
 from sql.models.zone import Zone
 
 
-class ZoneService:
+class ZoneRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -25,7 +25,7 @@ class ZoneService:
         self.db.refresh(zone)
 
 
-class GroupService:
+class GroupRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -39,7 +39,7 @@ class GroupService:
         self.db.refresh(grp)
 
 
-class SubsService:
+class SubsRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -80,7 +80,7 @@ class SubsService:
         return ex_sub
 
 
-class UserService:
+class UsersRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -105,7 +105,7 @@ class UserService:
         self.db.flush()
 
 
-class DayService:
+class DayRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -122,7 +122,7 @@ class DayService:
         self.db.refresh(day)
 
 
-class HourService:
+class HourRepo:
     def __init__(self, db: Session):
         self.db = db
 
@@ -145,15 +145,15 @@ class HourService:
         self.db.refresh(hour)
 
 
-class SqlOperationsFacade:
+class SqlOperationsService:
 
     @staticmethod
     def delete_subs_for_user_group(tg_id: str, group_name: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            subs_serv = SubsService(session)
-            user_serv = UserService(session)
-            group_serv = GroupService(session)
+            subs_serv = SubsRepo(session)
+            user_serv = UsersRepo(session)
+            group_serv = GroupRepo(session)
             group = group_serv.get_group(group_name)
             user = user_serv.get_user(tg_id)
             subs = subs_serv.get_subs_for_user_grp(user, group)
@@ -164,8 +164,8 @@ class SqlOperationsFacade:
     def delete_no_sub_user(tg_id: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            user_serv = UserService(session)
-            subs_serv = SubsService(session)
+            user_serv = UsersRepo(session)
+            subs_serv = SubsRepo(session)
             user = user_serv.get_user(tg_id)
             if subs_serv.get_subs_for_user(user) == 0:
                 user_serv.delete(user)
@@ -174,7 +174,7 @@ class SqlOperationsFacade:
     def delete_user_with_subs(tg_id: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            user_serv = UserService(session)
+            user_serv = UsersRepo(session)
             user = user_serv.get_user(tg_id)
             user_serv.delete(user)
 
@@ -182,9 +182,9 @@ class SqlOperationsFacade:
     def subscribe_user(tg_id: str, group_name: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            user_serv = UserService(session)
-            subs_serv = SubsService(session)
-            grp_serv = GroupService(session)
+            user_serv = UsersRepo(session)
+            subs_serv = SubsRepo(session)
+            grp_serv = GroupRepo(session)
             user = user_serv.add(tg_id)
             grp = grp_serv.get_group(group_name)
             if grp is None:
@@ -196,13 +196,13 @@ class SqlOperationsFacade:
     def get_all_subs():
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            subs_serv = SubsService(session)
+            subs_serv = SubsRepo(session)
             return subs_serv.get_subs()
 
     @staticmethod
     def get_subs_for_user(tg_id: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
-            subs_serv = SubsService(session)
-            user_serv = UserService(session)
+            subs_serv = SubsRepo(session)
+            user_serv = UsersRepo(session)
             return subs_serv.get_subs_for_user(user_serv.get_user(tg_id))

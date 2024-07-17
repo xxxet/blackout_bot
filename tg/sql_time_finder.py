@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytz
 
 from config import get_session_maker
-from sql.sql_service import HourService, GroupService
+from sql.sql_service import HourRepo, GroupRepo
 
 
 @dataclass
@@ -29,8 +29,8 @@ class SqlTimeFinder:
     def read_schedule(self):
         session_maker = get_session_maker()
         with session_maker() as session:
-            grp = GroupService(session).get_group(self.group_name)
-            self.hours_in_week = HourService(session).get_hours_for_group(grp)
+            grp = GroupRepo(session).get_group(self.group_name)
+            self.hours_in_week = HourRepo(session).get_hours_for_group(grp)
 
     def get_hour(self, day, start_h):
         hour_ind = day * 24 + start_h

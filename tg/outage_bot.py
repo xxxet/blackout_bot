@@ -1,8 +1,7 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
-import pytz
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import CommandHandler, Application, ContextTypes
 
 import config
@@ -19,8 +18,6 @@ logger = logging.getLogger(__name__)
 class OutageBot:
 
     def __init__(self):
-        self.timezone_str = 'Europe/Kyiv'
-        self.tz = pytz.timezone(self.timezone_str)
         self.before_time = 15
         self.time_finders: dict[str, SqlTimeFinder] = {}
 
@@ -28,7 +25,7 @@ class OutageBot:
         if group in self.time_finders.keys():
             return self.time_finders.get(group)
         else:
-            tf = SqlTimeFinder(group, self.timezone_str)
+            tf = SqlTimeFinder(group, config.tz)
             tf.read_schedule()
             self.time_finders[group] = tf
             return self.time_finders[group]
@@ -67,6 +64,15 @@ class OutageBot:
         await update.message.reply_text('Stopped notifications for all groups')
 
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = [
+            [
+                InlineKeyboardButton("Option 1", callback_data="1"),
+                InlineKeyboardButton("Option 2", callback_data="2"),
+            ],
+            [InlineKeyboardButton("Option 3", callback_data="3")],
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(f'Available commands:\n/start \n'
                                         f'/stop group_name \n'
                                         f'/subscribe group_name')
@@ -89,8 +95,7 @@ class OutageBot:
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = str(update.message.chat_id)
         subs = SqlOperationsService.get_subs_for_user(chat_id)
-        if len(subs) == 0:
-            await update.message.reply_text(f'You are not subscribed, {chat_id}')
+        await self.check_for_subscription(chat_id, subs, update)
         for sub in subs:
             remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
                 notify_before=self.before_time)
@@ -98,14 +103,10 @@ class OutageBot:
 
     async def jobs_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = str(update.message.chat_id)
-        if context.job_queue.get_jobs_by_name(str(chat_id)):
-            await update.message.reply_text(f'You are subscribed, {chat_id}')
-        else:
-            await update.message.reply_text(f'You are not subscribed, {chat_id}')
         jobs = context.job_queue.jobs()
         list_of_jobs = ""
         list_of_jobs += f"Server time {datetime.now().strftime("%m-%d-%Y, %H:%M %Z")} \n"
-        list_of_jobs += f"Server time in EEST {datetime.now(self.tz).strftime("%m-%d-%Y, %H:%M %Z")} \n"
+        list_of_jobs += f"Server time in EEST {datetime.now(config.tz).strftime("%m-%d-%Y, %H:%M %Z")} \n"
         for i, job in enumerate(jobs):
             list_of_jobs += (f"Job queue: {i} '{job.job.next_run_time.strftime("%m-%d-%Y, %H:%M %Z")}'"
                              f" '{job.job.id}' "
@@ -121,11 +122,26 @@ class OutageBot:
             app.job_queue.run_once(self.notification, name=str(sub.user_tg_id), when=remind_obj.remind_time,
                                    data=remind_obj, chat_id=sub.user_tg_id)
 
+    async def __show_schedule_for_day(self, chat_id, day, update):
+        subs = SqlOperationsService.get_subs_for_user(chat_id)
+        await self.check_for_subscription(chat_id, subs, update)
+        for sub in subs:
+            schedule = SqlOperationsService.get_schedule_for(day, sub.group.group_name)
+            await update.message.reply_text("\n".join([f"Schedule for {day} for {sub.group.group_name}:"] + schedule))
+
     async def today_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        pass
+        chat_id = str(update.message.chat_id)
+        today = datetime.now(config.tz).strftime("%A")
+        await self.__show_schedule_for_day(chat_id, today, update)
 
     async def tomorrow_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        pass
+        chat_id = str(update.message.chat_id)
+        tomorrow = (datetime.now(config.tz) + timedelta(days=1)).strftime("%A")
+        await self.__show_schedule_for_day(chat_id, tomorrow, update)
+
+    async def check_for_subscription(self, chat_id, subs, update):
+        if len(subs) == 0:
+            await update.message.reply_text(f'You are not subscribed, {chat_id}')
 
 
 def main(token):

@@ -1,5 +1,7 @@
+from datetime import time
 from typing import List
 
+from sqlalchemy import func, and_, over
 from sqlalchemy.orm import Session, joinedload
 
 import config
@@ -206,3 +208,47 @@ class SqlOperationsService:
             subs_serv = SubsRepo(session)
             user_serv = UsersRepo(session)
             return subs_serv.get_subs_for_user(user_serv.get_user(tg_id))
+
+    @staticmethod
+    def get_schedule_for(day: str, group: str):
+        """
+        query:
+                # select zone_name, hour, count(*)
+                # from (
+                # select
+                #          h.*, z.zone_name,
+                #     	(row_number() over(order by h.hour_id)  -
+                #         row_number() over(partition by h.zone_id order by h.hour_id)  ) as grp
+                #         from hours h
+                #        	inner join zones z on h.zone_id = z.zone_id
+                # 		inner join days d on h.day_id = d.day_id
+                # 		inner join groups g on h.group_id = g.group_id
+                # 		WHERE d.day_name = 'Monday' and g.group_name='group5'
+                # 		) hours_groups
+                # group by grp, zone_id order by hour
+
+        :param day:
+        :param group:
+        """
+        session_maker = config.get_session_maker()
+        with (session_maker() as session):
+            sub_q = session.query(
+                Zone.zone_name, Group.group_name, Hour, (over(func.row_number(), order_by=Hour.hour_id) -
+                                                         over(func.row_number(), order_by=Hour.hour_id,
+                                                              partition_by=Hour.zone_id)).label('grp_zone')
+            ).select_from(
+                Hour
+            ).join(
+                Zone, Zone.zone_id == Hour.zone_id
+            ).join(
+                Group, Group.group_id == Hour.group_id
+            ).join(
+                Day, Day.day_id == Hour.day_id
+            ).filter(
+                and_(Day.day_name == day, Group.group_name == group)
+            ).subquery()
+            outage_hours_query = session.query(sub_q.c,
+                                               func.count().label("outage_hours")).select_from(sub_q).group_by(
+                "grp_zone", sub_q.c.zone_id).order_by(sub_q.c.hour)
+            outage_hours_result = outage_hours_query.all()
+            return [f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}" for row in outage_hours_result]

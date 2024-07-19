@@ -21,9 +21,9 @@ class RemindObj:
 
 
 class SqlTimeFinder:
-    def __init__(self, group_name, timezone):
+    def __init__(self, group_name, timezone: pytz):
         self.group_name = group_name
-        self.tz = pytz.timezone(timezone)
+        self.tz = timezone
         self.hours_in_week = None
 
     def read_schedule(self):

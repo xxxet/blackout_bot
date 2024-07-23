@@ -30,11 +30,11 @@ class OutageBot:
     def get_time_finder(self, group) -> SqlTimeFinder:
         if group in self.time_finders.keys():
             return self.time_finders.get(group)
-        else:
-            tf = SqlTimeFinder(group, config.tz)
-            tf.read_schedule()
-            self.time_finders[group] = tf
-            return self.time_finders[group]
+
+        tf = SqlTimeFinder(group, config.tz)
+        tf.read_schedule()
+        self.time_finders[group] = tf
+        return self.time_finders[group]
 
     async def notification(self, context: ContextTypes.DEFAULT_TYPE):
         chat_id = str(context.job.chat_id)
@@ -53,7 +53,7 @@ class OutageBot:
         await context.bot.send_message(chat_id=chat_id, text=f"Change for {remind_obj.group}:\n{remind_obj.get_msg()}")
 
     async def stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = str(update.effective_user.id)
+        chat_id = update.effective_user.id
         deleted_jobs = list(map(lambda job: job.schedule_removal(), context.job_queue.get_jobs_by_name(str(chat_id))))
         await context.bot.send_message(chat_id=chat_id, text=f'Removed jobs: {len(deleted_jobs)}')
         SqlService.delete_user_with_subs(chat_id)
@@ -76,25 +76,27 @@ class OutageBot:
     async def subscribe_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         groups = SqlService.get_all_groups()
         keyboard = [
-            [InlineKeyboardButton(grp.group_name, callback_data=f"{self.subscribe}_" + grp.group_name) for grp in groups]]
+            [InlineKeyboardButton(grp.group_name, callback_data=f"{self.subscribe}_" + grp.group_name) for grp in
+             groups]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_user.id, text="Choose group", reply_markup=reply_markup)
 
-    async def subscribe_action(self, chat_id: str, group: str, context: ContextTypes.DEFAULT_TYPE):
+    async def subscribe_action(self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE):
         if SqlService.subscribe_user(chat_id, group):
             remind_obj = self.get_time_finder(group).find_next_remind_time(notify_before=self.before_time)
             context.job_queue.run_once(self.notification, name=str(chat_id), when=remind_obj.remind_time,
                                        data=remind_obj, chat_id=chat_id)
             await context.bot.send_message(text=f"You are subscribed to {group}", chat_id=chat_id)
-            self.send_notif_message(chat_id, context, remind_obj)
+            await self.send_notif_message(chat_id, context, remind_obj)
         else:
-            await context.bot.send_message(text=f"No such group {group} added yet", chat_id=chat_id)
+            await context.bot.send_message(text=f"You are already subscribed to {group}", chat_id=chat_id)
 
     async def unsubscribe_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = str(update.effective_user.id)
+        chat_id = update.effective_user.id
         subs = SqlService.get_subs_for_user(chat_id)
         keyboard = [
-            [InlineKeyboardButton(sub.group.group_name, callback_data=f"{self.unsubscribe}_" + sub.group.group_name) for sub in
+            [InlineKeyboardButton(sub.group.group_name, callback_data=f"{self.unsubscribe}_" + sub.group.group_name) for
+             sub in
              subs]]
         if len(subs) == 0:
             await context.bot.send_message(chat_id=update.effective_user.id, text="You are not subscribed to any group")
@@ -103,7 +105,7 @@ class OutageBot:
             await context.bot.send_message(chat_id=update.effective_user.id, text="Unsubscribe from",
                                            reply_markup=reply_markup)
 
-    async def unsubscribe_action(self, chat_id: str, group: str, context: ContextTypes.DEFAULT_TYPE):
+    async def unsubscribe_action(self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE):
         deleted_jobs = list(map(lambda job: job.schedule_removal(),
                                 filter(lambda job: job.data.group == group,
                                        context.job_queue.get_jobs_by_name(str(chat_id)))))
@@ -113,7 +115,7 @@ class OutageBot:
         SqlService.delete_no_sub_user(chat_id)
 
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = str(update.effective_user.id)
+        chat_id = update.effective_user.id
         subs = SqlService.get_subs_for_user(chat_id)
         await self.check_for_subscription(chat_id, subs, context)
         for sub in subs:
@@ -134,7 +136,7 @@ class OutageBot:
                              f"'{job.name}' '{job.data}'\n\n")
         await context.bot.send_message(text=f'{list_of_jobs}', chat_id=chat_id)
 
-    async def __show_schedule_for_day(self, chat_id: str, day: str, context: ContextTypes.DEFAULT_TYPE):
+    async def __show_schedule_for_day(self, chat_id: int, day: str, context: ContextTypes.DEFAULT_TYPE):
         subs = SqlService.get_subs_for_user(chat_id)
         await self.check_for_subscription(chat_id, subs, context)
         for sub in subs:
@@ -143,12 +145,12 @@ class OutageBot:
                 [f"Schedule for {day} for {sub.group.group_name}:"] + schedule))
 
     async def today_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = str(update.effective_user.id)
+        chat_id = update.effective_user.id
         today = datetime.now(config.tz).strftime("%A")
         await self.__show_schedule_for_day(chat_id, today, context)
 
     async def tomorrow_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        chat_id = str(update.effective_user.id)
+        chat_id = update.effective_user.id
         tomorrow = (datetime.now(config.tz) + timedelta(days=1)).strftime("%A")
         await self.__show_schedule_for_day(chat_id, tomorrow, context)
 

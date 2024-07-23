@@ -57,7 +57,7 @@ class SubsRepo:
         return (self.db.query(Subscription)
                 .options(joinedload(Subscription.group)).all())
 
-    def get_subs_for_tgid(self, tg_id: str) -> List[Subscription]:
+    def get_subs_for_tgid(self, tg_id: int) -> List[Subscription]:
         return (self.db.query(Subscription).filter(Subscription.user_tg_id == tg_id)
                 .options(joinedload(Subscription.group)).all())
 
@@ -74,15 +74,15 @@ class SubsRepo:
                                                    Subscription.group_id == grp.group_id)
                 .options(joinedload(Subscription.group)).all())
 
-    def add(self, user: User, grp: Group):
+    def add(self, user: User, grp: Group) -> bool:
         ex_sub = self.get_subs_for_user_grp(user, grp)
         if len(ex_sub) == 0:
             sub = Subscription(user_tg_id=user.tg_id, group_id=grp.group_id)
             self.db.add(sub)
             self.db.commit()
             self.db.refresh(sub)
-            return sub
-        return ex_sub
+            return True
+        return False
 
 
 class UsersRepo:
@@ -92,10 +92,10 @@ class UsersRepo:
     def get_users(self) -> List[User]:
         return self.db.query(User).options(joinedload(User.subs)).all()
 
-    def get_user(self, tg_id: str) -> User:
+    def get_user(self, tg_id: int) -> User:
         return self.db.query(User).filter(User.tg_id == tg_id).options(joinedload(User.subs)).first()
 
-    def add(self, tg_id: str, show_help=False):
+    def add(self, tg_id: int, show_help=False):
         ex_user = self.get_user(tg_id)
         if ex_user is None:
             user = User(tg_id=tg_id, show_help=show_help)
@@ -156,7 +156,7 @@ class HourRepo:
 class SqlService:
 
     @staticmethod
-    def delete_subs_for_user_group(tg_id: str, group_name: str):
+    def delete_subs_for_user_group(tg_id: int, group_name: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             subs_serv = SubsRepo(session)
@@ -169,7 +169,7 @@ class SqlService:
                 subs_serv.delete(sub)
 
     @staticmethod
-    def delete_no_sub_user(tg_id: str):
+    def delete_no_sub_user(tg_id: int):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_serv = UsersRepo(session)
@@ -179,7 +179,7 @@ class SqlService:
                 user_serv.delete(user)
 
     @staticmethod
-    def delete_user_with_subs(tg_id: str):
+    def delete_user_with_subs(tg_id: int):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_serv = UsersRepo(session)
@@ -187,7 +187,7 @@ class SqlService:
             user_serv.delete(user)
 
     @staticmethod
-    def subscribe_user(tg_id: str, group_name: str):
+    def subscribe_user(tg_id: int, group_name: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_serv = UsersRepo(session)
@@ -197,8 +197,8 @@ class SqlService:
             grp = grp_serv.get_group(group_name)
             if grp is None:
                 return False
-            subs_serv.add(user, grp)
-            return True
+            return subs_serv.add(user, grp)
+
 
     @staticmethod
     def get_all_subs():
@@ -222,7 +222,7 @@ class SqlService:
             return group_repo.get_groups()
 
     @staticmethod
-    def update_user_help(tg_id: str, show_help: bool):
+    def update_user_help(tg_id: int, show_help: bool):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_serv = UsersRepo(session)
@@ -231,7 +231,7 @@ class SqlService:
             session.commit()
 
     @staticmethod
-    def get_subs_for_user(tg_id: str):
+    def get_subs_for_user(tg_id: int):
         session_maker = config.get_session_maker()
         with session_maker() as session:
             subs_serv = SubsRepo(session)

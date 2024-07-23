@@ -183,7 +183,8 @@ class OutageBot:
         users = SqlService.get_all_users()
         for user in users:
             if user.show_help:
-                app.job_queue.run_once(self.message, name=str(user.tg_id), when=datetime.now(tz=config.tz),
+                app.job_queue.run_once(self.message, name=str(user.tg_id),
+                                       when=datetime.now(tz=config.tz) + timedelta(minutes=1),
                                        data="The bot has been updated, to see help, try /start", chat_id=user.tg_id)
                 SqlService.update_user_help(user.tg_id, False)
 
@@ -192,7 +193,8 @@ class OutageBot:
         for sub in subs:
             remind_obj = self.get_time_finder(sub.group.group_name).find_next_remind_time(
                 notify_before=self.before_time)
-            app.job_queue.run_once(self.notification, name=str(sub.user_tg_id), when=remind_obj.remind_time,
+            app.job_queue.run_once(self.notification, name=str(sub.user_tg_id),
+                                   when=remind_obj.remind_time + timedelta(minutes=1),
                                    data=remind_obj, chat_id=sub.user_tg_id)
 
 

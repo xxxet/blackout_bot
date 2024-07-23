@@ -76,8 +76,8 @@ class OutageBot:
     async def subscribe_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         groups = SqlService.get_all_groups()
         keyboard = [
-            [InlineKeyboardButton(grp.group_name, callback_data=f"{self.subscribe}_" + grp.group_name) for grp in
-             groups]]
+            [InlineKeyboardButton(grp.group_name, callback_data=f"{self.subscribe}_" + grp.group_name)] for grp in
+            groups]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_user.id, text="Choose group", reply_markup=reply_markup)
 
@@ -95,9 +95,8 @@ class OutageBot:
         chat_id = update.effective_user.id
         subs = SqlService.get_subs_for_user(chat_id)
         keyboard = [
-            [InlineKeyboardButton(sub.group.group_name, callback_data=f"{self.unsubscribe}_" + sub.group.group_name) for
-             sub in
-             subs]]
+            [InlineKeyboardButton(sub.group.group_name, callback_data=f"{self.unsubscribe}_" + sub.group.group_name)]
+            for sub in subs]
         if len(subs) == 0:
             await context.bot.send_message(chat_id=update.effective_user.id, text="You are not subscribed to any group")
         else:

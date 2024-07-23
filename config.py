@@ -25,8 +25,8 @@ def test_timefinder():
 
 
 def test_sqlserv():
-    from sql.sql_service import SqlOperationsService
-    sch = SqlOperationsService.get_schedule_for("Monday", "group5")
+    from sql.sql_service import SqlService
+    sch = SqlService.get_schedule_for("Monday", "group5")
     pass
 
 

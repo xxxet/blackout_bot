@@ -34,6 +34,9 @@ class GroupRepo:
     def get_group(self, name: str) -> Group:
         return self.db.query(Group).filter(Group.group_name == name).first()
 
+    def get_groups(self) -> List[Group]:
+        return self.db.query(Group).all()
+
     def add(self, name: str, custom: bool):
         grp = Group(group_name=name, custom=custom)
         self.db.add(grp)
@@ -86,7 +89,10 @@ class UsersRepo:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user(self, tg_id: str):
+    def get_users(self) -> List[User]:
+        return self.db.query(User).options(joinedload(User.subs)).all()
+
+    def get_user(self, tg_id: str) -> User:
         return self.db.query(User).filter(User.tg_id == tg_id).options(joinedload(User.subs)).first()
 
     def add(self, tg_id: str, show_help=False):
@@ -147,7 +153,7 @@ class HourRepo:
         self.db.refresh(hour)
 
 
-class SqlOperationsService:
+class SqlService:
 
     @staticmethod
     def delete_subs_for_user_group(tg_id: str, group_name: str):
@@ -202,6 +208,29 @@ class SqlOperationsService:
             return subs_serv.get_subs()
 
     @staticmethod
+    def get_all_users():
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_repo = UsersRepo(session)
+            return user_repo.get_users()
+
+    @staticmethod
+    def get_all_groups() -> List[Group]:
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            group_repo = GroupRepo(session)
+            return group_repo.get_groups()
+
+    @staticmethod
+    def update_user_help(tg_id: str, show_help: bool):
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_serv = UsersRepo(session)
+            user = user_serv.get_user(tg_id)
+            user.show_help = show_help
+            session.commit()
+
+    @staticmethod
     def get_subs_for_user(tg_id: str):
         session_maker = config.get_session_maker()
         with session_maker() as session:
@@ -251,4 +280,5 @@ class SqlOperationsService:
                                                func.count().label("outage_hours")).select_from(sub_q).group_by(
                 "grp_zone", sub_q.c.zone_id).order_by(sub_q.c.hour)
             outage_hours_result = outage_hours_query.all()
-            return [f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}" for row in outage_hours_result]
+            return [f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}" for row in
+                    outage_hours_result]

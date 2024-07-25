@@ -50,7 +50,7 @@ class OutageBot:
         await context.bot.send_message(chat_id=chat_id, text=context.job.data)
 
     async def send_notif_message(self, chat_id, context, remind_obj):
-        await context.bot.send_message(chat_id=chat_id, text=f"Change for {remind_obj.group}:\n{remind_obj.get_msg()}")
+        await context.bot.send_message(chat_id=chat_id, text=f"{remind_obj.character()} {remind_obj.group}:\n{remind_obj.get_msg()}")
 
     async def stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.effective_user.id

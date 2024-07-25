@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytz
 
+import config
 from config import get_session_maker
 from sql.sql_service import HourRepo, GroupRepo
 
@@ -18,6 +19,17 @@ class RemindObj:
 
     def get_msg(self):
         return f"Zone is going to change from {self.old_zone} to {self.new_zone} at {self.change_time.strftime("%H:%M")}"
+
+    def character(self):
+        match self.new_zone:
+            case config.BLACK_ZONE:
+                return "⚫"
+            case config.WHITE_ZONE:
+                return "⚪"
+            case config.GREY_ZONE:
+                return "◯"
+            case _:
+                return ""
 
 
 class SqlTimeFinder:

@@ -7,7 +7,7 @@ from sql.models.user import User
 
 
 class Subscription(Base):
-    __tablename__ = 'subscriptions'
+    __tablename__ = "subscriptions"
     user_tg_id = Column(String, ForeignKey("users.tg_id"), primary_key=True)
     group_id = Column(Integer, ForeignKey("groups.group_id"), primary_key=True)
     group = relationship(Group)

@@ -1,14 +1,22 @@
 Run last alembic migration:
-alembic upgrade head
+`alembic upgrade head`
 
 go to first version:
-alembic downgrade rev#
+`alembic downgrade rev#`
 
 generate initial migration:
-alembic revision --autogenerate -m 'initial'
+`alembic revision --autogenerate -m 'initial'
 create revision:
 alembic revision -m "seed"
-
+`
 run in docker 
+`
 sudo ./run_migrations.sh "bot_id"
 sudo ./run_in_docker.sh "bot_id"
+`
+
+install precommit hooks 
+`
+pre-commit install
+pre-commit run --all-files
+`

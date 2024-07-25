@@ -17,7 +17,7 @@ class CsvTimeFinder:
 
     def read_schedule(self):
         self.rg.save_to_csv()
-        with open(self.rg.csv_table, mode='r', encoding="UTF-8") as file:
+        with open(self.rg.csv_table, mode="r", encoding="UTF-8") as file:
             for row in csv.DictReader(file):
                 self.outage_table.append(row)
 
@@ -51,7 +51,9 @@ class CsvTimeFinder:
         if change_d >= now.weekday():
             day_change = timedelta(days=change_d - now.weekday())
         else:
-            day_change = timedelta(days=len(self.outage_table) - now.weekday() + change_d)
+            day_change = timedelta(
+                days=len(self.outage_table) - now.weekday() + change_d
+            )
         new_time = now + day_change
         new_time = new_time.replace(hour=change_h, minute=0)
 
@@ -62,17 +64,23 @@ class CsvTimeFinder:
         now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
         zone_change_time = self.get_next_zone_change(now)
         old_zone = self.outage_table[now.weekday()].get(str(now.hour))
-        new_zone = self.outage_table[zone_change_time.weekday()].get(str(zone_change_time.hour))
+        new_zone = self.outage_table[zone_change_time.weekday()].get(
+            str(zone_change_time.hour)
+        )
 
         diff = zone_change_time - now
         if diff.total_seconds() / 60 <= notify_before:
-            return (now,
-                    f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
-        return (zone_change_time - timedelta(minutes=notify_before),
-                f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}")
+            return (
+                now,
+                f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}",
+            )
+        return (
+            zone_change_time - timedelta(minutes=notify_before),
+            f"Zone is going to change from {old_zone} to {new_zone} at {zone_change_time.strftime("%H:%M")}",
+        )
 
 
-if __name__ == '__main__':
-    tf = CsvTimeFinder("../group5.png", 'Europe/Kyiv')
+if __name__ == "__main__":
+    tf = CsvTimeFinder("../group5.png", "Europe/Kyiv")
     tf.read_schedule()
     print(tf.find_next_remind_time())

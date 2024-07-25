@@ -11,11 +11,21 @@ from sql.models.user import User
 from sql.models.zone import Zone
 from sql.sql_service import DayRepo, ZoneRepo, GroupRepo, HourRepo
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S"
+)
 
 
 def seed_groups():
-    days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    days_of_week = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
     session_maker = get_session_maker()
     with session_maker() as session:
         day_serv = DayRepo(session)
@@ -31,8 +41,7 @@ def seed_groups():
         group_serv = GroupRepo(session)
         # Insert groups into Groups table
 
-        files = [f for f in pathlib.Path("resources").iterdir()
-                 if f.is_file()]
+        files = [f for f in pathlib.Path("resources").iterdir() if f.is_file()]
         for file in files:
             group_serv.add(file.stem, custom=False)
             group = group_serv.get_group(file.stem)

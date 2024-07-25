@@ -7,7 +7,9 @@ from config import Base
 
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     tg_id = Column(String, primary_key=True)
     show_help = Column(Boolean)
-    subs: Mapped[List["Subscription"]] = relationship(back_populates="user", cascade="all, delete")
+    subs: Mapped[List["Subscription"]] = relationship(
+        back_populates="user", cascade="all, delete"
+    )

@@ -34,7 +34,7 @@ class GroupRepo:
     def get_group(self, name: str) -> Group:
         return self.db.query(Group).filter(Group.group_name == name).first()
 
-    def get_groups(self) -> List[Group]:
+    def get_groups(self) -> list[Group]:
         return self.db.query(Group).all()
 
     def add(self, name: str, custom: bool):
@@ -53,26 +53,39 @@ class SubsRepo:
         self.db.commit()
         self.db.flush()
 
-    def get_subs(self) -> List[Subscription]:
-        return (self.db.query(Subscription)
-                .options(joinedload(Subscription.group)).all())
+    def get_subs(self) -> list[Subscription]:
+        return self.db.query(Subscription).options(joinedload(Subscription.group)).all()
 
-    def get_subs_for_tgid(self, tg_id: int) -> List[Subscription]:
-        return (self.db.query(Subscription).filter(Subscription.user_tg_id == tg_id)
-                .options(joinedload(Subscription.group)).all())
+    def get_subs_for_tgid(self, tg_id: int) -> list[Subscription]:
+        return (
+            self.db.query(Subscription)
+            .filter(Subscription.user_tg_id == tg_id)
+            .options(joinedload(Subscription.group))
+            .all()
+        )
 
     def get_subs_for_user(self, user: User) -> List[Subscription]:
         if user is None:
             return []
-        return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id)
-                .options(joinedload(Subscription.group)).all())
+        return (
+            self.db.query(Subscription)
+            .filter(Subscription.user_tg_id == user.tg_id)
+            .options(joinedload(Subscription.group))
+            .all()
+        )
 
     def get_subs_for_user_grp(self, user: User, grp: Group) -> List[Subscription]:
         if user is None or grp is None:
             return []
-        return (self.db.query(Subscription).filter(Subscription.user_tg_id == user.tg_id,
-                                                   Subscription.group_id == grp.group_id)
-                .options(joinedload(Subscription.group)).all())
+        return (
+            self.db.query(Subscription)
+            .filter(
+                Subscription.user_tg_id == user.tg_id,
+                Subscription.group_id == grp.group_id,
+            )
+            .options(joinedload(Subscription.group))
+            .all()
+        )
 
     def add(self, user: User, grp: Group) -> bool:
         ex_sub = self.get_subs_for_user_grp(user, grp)
@@ -89,11 +102,16 @@ class UsersRepo:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_users(self) -> List[User]:
+    def get_users(self) -> list[User]:
         return self.db.query(User).options(joinedload(User.subs)).all()
 
     def get_user(self, tg_id: int) -> User:
-        return self.db.query(User).filter(User.tg_id == tg_id).options(joinedload(User.subs)).first()
+        return (
+            self.db.query(User)
+            .filter(User.tg_id == tg_id)
+            .options(joinedload(User.subs))
+            .first()
+        )
 
     def add(self, tg_id: int, show_help=False):
         ex_user = self.get_user(tg_id)
@@ -117,10 +135,10 @@ class DayRepo:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_day(self, name: str):
+    def get_day(self, name: str) -> Day:
         return self.db.query(Day).filter(Day.day_name == name).first()
 
-    def get(self, day_id: int):
+    def get(self, day_id: int) -> Day:
         return self.db.query(Day).filter(Day.day_id == day_id).first()
 
     def add(self, name: str):
@@ -134,20 +152,25 @@ class HourRepo:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_hours_for_day_group(self, day: Day, grp: Group):
-        return self.db.query(Hour).filter(Hour.day_id == day.day_id,
-                                          Group.group_name == grp.group_name)
+    def get_hours_for_day_group(self, day: Day, grp: Group) -> list[Hour]:
+        return (
+            self.db.query(Hour)
+            .filter(Hour.day_id == day.day_id, Group.group_name == grp.group_name)
+            .all()
+        )
 
-    def get_hours_for_day(self, day: Day):
+    def get_hours_for_day(self, day: Day) -> list[Hour]:
         return self.db.query(Hour).filter(Hour.day_id == day.day_id).all()
 
-    def get_hours_for_group(self, group: Group):
-        return (self.db.query(Hour).filter(Hour.group_id == group.group_id)
-                .options(joinedload(Hour.zone), joinedload(Hour.day))).all()
+    def get_hours_for_group(self, group: Group) -> list[Hour]:
+        return (
+            self.db.query(Hour)
+            .filter(Hour.group_id == group.group_id)
+            .options(joinedload(Hour.zone), joinedload(Hour.day))
+        ).all()
 
     def add(self, hour: int, zone: Zone, day: Day, group: Group):
-        hour = Hour(hour=hour, zone=zone,
-                    day=day, group=group)
+        hour = Hour(hour=hour, zone=zone, day=day, group=group)
         self.db.add(hour)
         self.db.commit()
         self.db.refresh(hour)
@@ -187,7 +210,7 @@ class SqlService:
             user_serv.delete(user)
 
     @staticmethod
-    def subscribe_user(tg_id: int, group_name: str):
+    def subscribe_user(tg_id: int, group_name: str) -> bool:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_serv = UsersRepo(session)
@@ -199,23 +222,22 @@ class SqlService:
                 return False
             return subs_serv.add(user, grp)
 
-
     @staticmethod
-    def get_all_subs():
+    def get_all_subs() -> list[Subscription]:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             subs_serv = SubsRepo(session)
             return subs_serv.get_subs()
 
     @staticmethod
-    def get_all_users():
+    def get_all_users() -> list[User]:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_repo = UsersRepo(session)
             return user_repo.get_users()
 
     @staticmethod
-    def get_all_groups() -> List[Group]:
+    def get_all_groups() -> list[Group]:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             group_repo = GroupRepo(session)
@@ -242,43 +264,54 @@ class SqlService:
     def get_schedule_for(day: str, group: str):
         """
         query:
-                # select zone_name, hour, count(*)
-                # from (
-                # select
-                #          h.*, z.zone_name,
-                #     	(row_number() over(order by h.hour_id)  -
-                #         row_number() over(partition by h.zone_id order by h.hour_id)  ) as grp
-                #         from hours h
-                #        	inner join zones z on h.zone_id = z.zone_id
-                # 		inner join days d on h.day_id = d.day_id
-                # 		inner join groups g on h.group_id = g.group_id
-                # 		WHERE d.day_name = 'Monday' and g.group_name='group5'
-                # 		) hours_groups
-                # group by grp, zone_id order by hour
+            select zone_name, hour, count(*)
+            from (
+            select
+                    h.*, z.zone_name,
+                    (row_number() over(order by h.hour_id)  -
+                    row_number() over(partition by h.zone_id order by h.hour_id)  ) as grp
+                    from hours h
+                    inner join zones z on h.zone_id = z.zone_id
+                        inner join days d on h.day_id = d.day_id
+                        inner join groups g on h.group_id = g.group_id
+                        WHERE d.day_name = 'Monday' and g.group_name='group5'
+                        ) hours_groups
+            group by grp, zone_id order by hour
 
         :param day:
         :param group:
         """
         session_maker = config.get_session_maker()
-        with (session_maker() as session):
-            sub_q = session.query(
-                Zone.zone_name, Group.group_name, Hour, (over(func.row_number(), order_by=Hour.hour_id) -
-                                                         over(func.row_number(), order_by=Hour.hour_id,
-                                                              partition_by=Hour.zone_id)).label('grp_zone')
-            ).select_from(
-                Hour
-            ).join(
-                Zone, Zone.zone_id == Hour.zone_id
-            ).join(
-                Group, Group.group_id == Hour.group_id
-            ).join(
-                Day, Day.day_id == Hour.day_id
-            ).filter(
-                and_(Day.day_name == day, Group.group_name == group)
-            ).subquery()
-            outage_hours_query = session.query(sub_q.c,
-                                               func.count().label("outage_hours")).select_from(sub_q).group_by(
-                "grp_zone", sub_q.c.zone_id).order_by(sub_q.c.hour)
+        with session_maker() as session:
+            sub_q = (
+                session.query(
+                    Zone.zone_name,
+                    Group.group_name,
+                    Hour,
+                    (
+                        over(func.row_number(), order_by=Hour.hour_id)
+                        - over(
+                            func.row_number(),
+                            order_by=Hour.hour_id,
+                            partition_by=Hour.zone_id,
+                        )
+                    ).label("grp_zone"),
+                )
+                .select_from(Hour)
+                .join(Zone, Zone.zone_id == Hour.zone_id)
+                .join(Group, Group.group_id == Hour.group_id)
+                .join(Day, Day.day_id == Hour.day_id)
+                .filter(and_(Day.day_name == day, Group.group_name == group))
+                .subquery()
+            )
+            outage_hours_query = (
+                session.query(sub_q.c, func.count().label("outage_hours"))
+                .select_from(sub_q)
+                .group_by("grp_zone", sub_q.c.zone_id)
+                .order_by(sub_q.c.hour)
+            )
             outage_hours_result = outage_hours_query.all()
-            return [f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}" for row in
-                    outage_hours_result]
+            return [
+                f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}"
+                for row in outage_hours_result
+            ]

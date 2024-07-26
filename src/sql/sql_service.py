@@ -11,6 +11,7 @@ from src.sql.models.hour import Hour
 from src.sql.models.subscription import Subscription
 from src.sql.models.user import User
 from src.sql.models.zone import Zone
+from src.sql.remind_obj import RemindObj
 
 
 class ZoneRepo:
@@ -20,11 +21,12 @@ class ZoneRepo:
     def get_zone(self, name: str) -> Zone:
         return self.db.query(Zone).filter(Zone.zone_name == name).first()
 
-    def add(self, name: str) -> None:
+    def add(self, name: str) -> Zone:
         zone = Zone(zone_name=name)
         self.db.add(zone)
         self.db.commit()
         self.db.refresh(zone)
+        return zone
 
 
 class GroupRepo:
@@ -37,11 +39,12 @@ class GroupRepo:
     def get_groups(self) -> list[Group]:
         return self.db.query(Group).all()
 
-    def add(self, name: str, custom: bool) -> None:
+    def add(self, name: str, custom: bool) -> Group:
         grp = Group(group_name=name, custom=custom)
         self.db.add(grp)
         self.db.commit()
         self.db.refresh(grp)
+        return grp
 
 
 class SubsRepo:
@@ -87,11 +90,12 @@ class SubsRepo:
             .all()
         )
 
-    def add(self, user: User, grp: Group) -> None:
+    def add(self, user: User, grp: Group) -> Subscription:
         sub = Subscription(user_tg_id=user.tg_id, group_id=grp.group_id)
         self.db.add(sub)
         self.db.commit()
         self.db.refresh(sub)
+        return sub
 
 
 class UsersRepo:
@@ -109,11 +113,12 @@ class UsersRepo:
             .first()
         )
 
-    def add(self, tg_id: int, show_help: bool = False) -> None:
+    def add(self, tg_id: int, show_help: bool = False) -> User:
         user = User(tg_id=tg_id, show_help=show_help)
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
+        return user
 
     def delete(self, user: User) -> None:
         self.db.delete(user)
@@ -131,11 +136,12 @@ class DayRepo:
     def get(self, day_id: int) -> Day:
         return self.db.query(Day).filter(Day.day_id == day_id).first()
 
-    def add(self, name: str) -> None:
+    def add(self, name: str) -> Day:
         day = Day(day_name=name)
         self.db.add(day)
         self.db.commit()
         self.db.refresh(day)
+        return day
 
 
 class HourRepo:
@@ -309,6 +315,9 @@ class SqlService:
             )
             outage_hours_result = outage_hours_query.all()
             return [
-                f"{time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}: {row.zone_name}"
+                (
+                    f"{RemindObj.symbol(row.zone_name)} {time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}:"
+                    f" {row.zone_name}"
+                )
                 for row in outage_hours_result
             ]

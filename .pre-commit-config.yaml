@@ -9,7 +9,7 @@ repos:
     rev: v1.11.0
     hooks:
       - id: mypy
-        args: [--ignore-missing-imports, --python-version=3.12 ]
+        args: [--ignore-missing-imports, --disallow-untyped-defs, --python-version=3.12 ]
         additional_dependencies: [types-pytz==2024.1.0.20240417]
   - repo: https://github.com/psf/black
     rev: 24.4.2

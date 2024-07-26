@@ -1,59 +1,32 @@
-from dataclasses import dataclass
 from datetime import datetime
 from datetime import timedelta
 
 from pytz.tzinfo import BaseTzInfo
 
-import config
 from config import get_session_maker
 from src.sql.models.hour import Hour
+from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import HourRepo, GroupRepo
 
 
-@dataclass
-class RemindObj:
-    group: str
-    old_zone: str
-    new_zone: str
-    remind_time: datetime
-    change_time: datetime
-
-    def get_msg(self) -> str:
-        return (
-            f"Zone is going to change from {self.old_zone} "
-            f"to {self.new_zone} at {self.change_time.strftime("%H:%M")}"
-        )
-
-    def character(self):
-        match self.new_zone:
-            case config.BLACK_ZONE:
-                return "⚫"
-            case config.WHITE_ZONE:
-                return "⚪"
-            case config.GREY_ZONE:
-                return "◯"
-            case _:
-                return ""
-
-
 class SqlTimeFinder:
-    def __init__(self, group_name, timezone: BaseTzInfo):
+    def __init__(self, group_name: str, timezone: BaseTzInfo):
         self.group_name = group_name
         self.tz = timezone
         self.hours_in_week: list[Hour] = []
 
-    def read_schedule(self):
+    def read_schedule(self) -> None:
         session_maker = get_session_maker()
         with session_maker() as session:
             grp = GroupRepo(session).get_group(self.group_name)
             self.hours_in_week = HourRepo(session).get_hours_for_group(grp)
 
-    def get_hour(self, day, start_h):
+    def get_hour(self, day: int, start_h: int) -> tuple[int, str]:
         hour_ind = day * 24 + start_h
         zone = self.hours_in_week[hour_ind].zone.zone_name
         return hour_ind, zone
 
-    def __look_for_change_in_week(self, day, start_h):
+    def __look_for_change_in_week(self, day: int, start_h: int) -> tuple[Hour, int]:
         cur_hour_ind, cur_zone = self.get_hour(day, start_h)
         # look for change from current hour to the end of the week
         for hour in self.hours_in_week[cur_hour_ind:]:
@@ -66,8 +39,11 @@ class SqlTimeFinder:
                 return hour, len(
                     self.hours_in_week
                 ) - cur_hour_ind + self.hours_in_week.index(hour)
+        raise ValueError("No change in zone found")
 
-    def find_next_remind_time(self, notify_before=0, time_delta=0) -> RemindObj:
+    def find_next_remind_time(
+        self, notify_before: int = 0, time_delta: int = 0
+    ) -> RemindObj:
         # now = datetime(2024, 7, 14, 21, 00, 00)
         now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
         _, old_zone = self.get_hour(now.weekday(), now.hour)

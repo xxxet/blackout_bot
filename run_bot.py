@@ -1,5 +1,6 @@
 import argparse
 
+from migration.seed import seed_groups
 from src.tg.outage_bot import main
 
 if __name__ == "__main__":

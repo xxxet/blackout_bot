@@ -41,13 +41,6 @@ class ReadDtekGroup:
         self.grey_cell = (238, 240, 239)
         self.black_cell = (210, 212, 214)
 
-    def extract(self) -> None:
-        img = Image(src=self.image_path, detect_rotation=True)
-        self.extracted_table = img.extract_tables(
-            implicit_rows=True, borderless_tables=True, min_confidence=50
-        )
-        self.__read_rows()
-
     def __read_rows(self) -> None:
         myimg = cv2.cvtColor(cv2.imread(self.image_path), cv2.COLOR_BGR2RGB)
 
@@ -115,6 +108,13 @@ class ReadDtekGroup:
         else:
             day_array.append("und")
 
+    def extract(self) -> None:
+        img = Image(src=self.image_path, detect_rotation=True)
+        self.extracted_table = img.extract_tables(
+            implicit_rows=True, borderless_tables=True, min_confidence=50
+        )
+        self.__read_rows()
+
     def save_to_csv(self, check_csv_exists: bool = True) -> None:
         if check_csv_exists:
             if os.path.isfile(self.csv_table):
@@ -130,4 +130,4 @@ class ReadDtekGroup:
 
 
 if __name__ == "__main__":
-    ReadDtekGroup("../../resources/group1.jpg").save_to_csv(check_csv_exists=False)
+    ReadDtekGroup("../../resources/group1.jpg").extract()

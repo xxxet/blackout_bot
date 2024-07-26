@@ -1,6 +1,6 @@
 import pytz
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 BLACK_ZONE = "black"
 GREY_ZONE = "grey"
@@ -12,5 +12,5 @@ engine = create_engine("sqlite:///blackout.db")
 tz = pytz.timezone("Europe/Kyiv")
 
 
-def get_session_maker():
+def get_session_maker() -> Session:
     return sessionmaker(bind=engine, expire_on_commit=False)

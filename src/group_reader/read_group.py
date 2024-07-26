@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from cv2 import kmeans, TERM_CRITERIA_MAX_ITER, TERM_CRITERIA_EPS, KMEANS_RANDOM_CENTERS
 from img2table.document import Image
+from img2table.tables.objects.extraction import ExtractedTable
 from numpy import float32, unique
 
 logging.basicConfig(
@@ -14,13 +15,15 @@ logging.basicConfig(
 )
 
 
-def display_table(img):
+def display_table(img: np.ndarray) -> None:
     cv2.imshow("ImageWindow", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 
-def visualise_cells(img, cell_l, cell_r):
+def visualise_cells(
+    img: np.ndarray, cell_l: tuple[int, int], cell_r: tuple[int, int]
+) -> None:
     cv2.rectangle(img, cell_l, cell_r, (255, 0, 0), 1)
 
 
@@ -28,7 +31,7 @@ class ReadDtekGroup:
 
     def __init__(self, image_path: str):
         self.outage_table: list[list[str]] = []
-        self.extracted_table = None
+        self.extracted_table: list[ExtractedTable] = []
         self.image_path = image_path
         file_name = os.path.basename(self.image_path)
         self.csv_table = os.path.join(
@@ -38,14 +41,14 @@ class ReadDtekGroup:
         self.grey_cell = (238, 240, 239)
         self.black_cell = (210, 212, 214)
 
-    def extract(self):
+    def extract(self) -> None:
         img = Image(src=self.image_path, detect_rotation=True)
         self.extracted_table = img.extract_tables(
             implicit_rows=True, borderless_tables=True, min_confidence=50
         )
         self.__read_rows()
 
-    def __read_rows(self):
+    def __read_rows(self) -> None:
         myimg = cv2.cvtColor(cv2.imread(self.image_path), cv2.COLOR_BGR2RGB)
 
         table = self.extracted_table[0]
@@ -53,7 +56,7 @@ class ReadDtekGroup:
         # skip first colum and header with labels (day name, time interval)
         table.content.popitem(last=False)
         for row in table.content.values():
-            day = []
+            day: list[str] = []
             first_cell = row[1]
             cur_y = first_cell.bbox.y1
             for i in range(1, 25):
@@ -81,17 +84,22 @@ class ReadDtekGroup:
                 u_colors = unique(colours, axis=0, return_counts=True)
                 max_index = np.where(u_colors[1] == u_colors[1].max())[0][0]
                 max_fr_color = u_colors[0][max_index]
-                visualise_cells(myimg, cell_l, cell_r)
+                # visualise_cells(myimg, cell_l, cell_r)
                 self.determine_cell_type(max_fr_color, day)
             self.outage_table.append(day)
         # display_table(myimg)
 
-    def determine_cell_type(self, cell_color, day_array):
-        def calc_delta(cell_color1, cell_color2):
+    def determine_cell_type(
+        self, cell_color: tuple[float, float, float], day_array: list[str]
+    ) -> None:
+        def calc_delta(
+            cell_color1: tuple[float, float, float],
+            reference_color: tuple[int, int, int],
+        ) -> float:
             return sqrt(
-                pow(cell_color1[0] - cell_color2[0], 2)
-                + pow(cell_color1[1] - cell_color2[1], 2)
-                + pow(cell_color1[2] - cell_color2[2], 2)
+                pow(cell_color1[0] - reference_color[0], 2)
+                + pow(cell_color1[1] - reference_color[1], 2)
+                + pow(cell_color1[2] - reference_color[2], 2)
             )
 
         delta_black = calc_delta(cell_color, self.black_cell)
@@ -107,7 +115,7 @@ class ReadDtekGroup:
         else:
             day_array.append("und")
 
-    def save_to_csv(self, check_csv_exists=True):
+    def save_to_csv(self, check_csv_exists: bool = True) -> None:
         if check_csv_exists:
             if os.path.isfile(self.csv_table):
                 logging.info(f"{self.csv_table} already exists, skipped parsing")
@@ -119,3 +127,7 @@ class ReadDtekGroup:
             write = csv.writer(csvfile)
             write.writerow(field_names)
             write.writerows(self.outage_table)
+
+
+if __name__ == "__main__":
+    ReadDtekGroup("../../resources/group1.jpg").save_to_csv(check_csv_exists=False)

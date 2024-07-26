@@ -307,7 +307,7 @@ class OutageBot:
             )
 
 
-def main(token):
+def main(token: str):
     application = Application.builder().token(token).build()
     outage_bot = OutageBot()
     start_handler = CommandHandler("start", outage_bot.start_command)

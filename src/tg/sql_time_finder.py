@@ -18,7 +18,7 @@ class RemindObj:
     remind_time: datetime
     change_time: datetime
 
-    def get_msg(self):
+    def get_msg(self) -> str:
         return (
             f"Zone is going to change from {self.old_zone} "
             f"to {self.new_zone} at {self.change_time.strftime("%H:%M")}"

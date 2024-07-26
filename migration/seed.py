@@ -1,15 +1,16 @@
 import logging
 import pathlib
 
-from group_reader.read_group import ReadGroup
+
 from config import get_session_maker, ZONES
-from sql.models.day import Day
-from sql.models.group import Group
-from sql.models.hour import Hour
-from sql.models.subscription import Subscription
-from sql.models.user import User
-from sql.models.zone import Zone
-from sql.sql_service import DayRepo, ZoneRepo, GroupRepo, HourRepo
+from src.group_reader.read_group import ReadDtekGroup
+from src.sql.models.day import Day
+from src.sql.models.group import Group
+from src.sql.models.hour import Hour
+from src.sql.models.subscription import Subscription
+from src.sql.models.user import User
+from src.sql.models.zone import Zone
+from src.sql.sql_service import DayRepo, ZoneRepo, GroupRepo, HourRepo
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%d-%b-%y %H:%M:%S"
@@ -45,7 +46,7 @@ def seed_groups():
         for file in files:
             group_serv.add(file.stem, custom=False)
             group = group_serv.get_group(file.stem)
-            rg = ReadGroup(str(file))
+            rg = ReadDtekGroup(str(file))
             rg.extract()
             hour_serv = HourRepo(session)
             for day_index, row in enumerate(rg.outage_table):

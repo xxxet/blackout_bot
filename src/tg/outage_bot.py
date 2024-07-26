@@ -11,8 +11,8 @@ from telegram.ext import (
 )
 
 import config
-from sql.sql_service import SqlService
-from tg.sql_time_finder import SqlTimeFinder
+from src.sql.sql_service import SqlService
+from src.tg.sql_time_finder import SqlTimeFinder
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -34,7 +34,7 @@ class OutageBot:
 
     def get_time_finder(self, group) -> SqlTimeFinder:
         if group in self.time_finders.keys():
-            return self.time_finders.get(group)
+            return self.time_finders[group]
 
         tf = SqlTimeFinder(group, config.tz)
         tf.read_schedule()

@@ -1,6 +1,6 @@
 import argparse
 
-from tg import main
+from src.tg.outage_bot import main
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

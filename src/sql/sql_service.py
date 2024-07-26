@@ -5,12 +5,12 @@ from sqlalchemy import func, and_, over
 from sqlalchemy.orm import Session, joinedload
 
 import config
-from sql.models.day import Day
-from sql.models.group import Group
-from sql.models.hour import Hour
-from sql.models.subscription import Subscription
-from sql.models.user import User
-from sql.models.zone import Zone
+from src.sql.models.day import Day
+from src.sql.models.group import Group
+from src.sql.models.hour import Hour
+from src.sql.models.subscription import Subscription
+from src.sql.models.user import User
+from src.sql.models.zone import Zone
 
 
 class ZoneRepo:

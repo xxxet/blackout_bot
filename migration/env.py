@@ -5,8 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from sql.models import day, group, hour, subscription, user, zone
-from config import Base
+from sql.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

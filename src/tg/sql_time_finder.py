@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from datetime import timedelta
 
-import pytz
+from pytz.tzinfo import BaseTzInfo
 
 import config
 from config import get_session_maker
-from sql.sql_service import HourRepo, GroupRepo
+from src.sql.models.hour import Hour
+from src.sql.sql_service import HourRepo, GroupRepo
 
 
 @dataclass
@@ -36,10 +37,10 @@ class RemindObj:
 
 
 class SqlTimeFinder:
-    def __init__(self, group_name, timezone: pytz):
+    def __init__(self, group_name, timezone: BaseTzInfo):
         self.group_name = group_name
         self.tz = timezone
-        self.hours_in_week = None
+        self.hours_in_week: list[Hour] = []
 
     def read_schedule(self):
         session_maker = get_session_maker()

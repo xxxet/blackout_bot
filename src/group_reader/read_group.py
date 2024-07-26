@@ -24,10 +24,10 @@ def visualise_cells(img, cell_l, cell_r):
     cv2.rectangle(img, cell_l, cell_r, (255, 0, 0), 1)
 
 
-class ReadGroup:
+class ReadDtekGroup:
 
     def __init__(self, image_path: str):
-        self.outage_table = []
+        self.outage_table: list[list[str]] = []
         self.extracted_table = None
         self.image_path = image_path
         file_name = os.path.basename(self.image_path)
@@ -119,12 +119,3 @@ class ReadGroup:
             write = csv.writer(csvfile)
             write.writerow(field_names)
             write.writerows(self.outage_table)
-
-
-if __name__ == "__main__":
-    ReadGroup("../resources/group1.jpg").save_to_csv(check_csv_exists=True)
-    ReadGroup("../resources/group2.jpg").save_to_csv(check_csv_exists=True)
-    ReadGroup("../resources/group3.jpg").save_to_csv(check_csv_exists=True)
-    ReadGroup("../resources/group4.jpg").save_to_csv(check_csv_exists=True)
-    ReadGroup("../resources/group5.jpg").save_to_csv(check_csv_exists=True)
-    ReadGroup("../resources/group6.jpg").save_to_csv(check_csv_exists=True)

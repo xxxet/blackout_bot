@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytz
 
-from group_reader.read_group import ReadGroup
+from src.group_reader.read_group import ReadDtekGroup
 
 
 class CsvTimeFinder:
@@ -12,7 +12,7 @@ class CsvTimeFinder:
         self.csv_file = None
         self.group_table_path = group_table_path
         self.tz = pytz.timezone(timezone)
-        self.rg = ReadGroup(self.group_table_path)
+        self.rg = ReadDtekGroup(self.group_table_path)
         self.outage_table = []
 
     def read_schedule(self):

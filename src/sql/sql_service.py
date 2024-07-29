@@ -195,7 +195,7 @@ class SqlService:
             user_repo = UsersRepo(session)
             subs_repo = SubsRepo(session)
             user = user_repo.get_user(tg_id)
-            if subs_repo.get_subs_for_user(user) == 0:
+            if len(subs_repo.get_subs_for_user(user)) == 0:
                 user_repo.delete(user)
 
     @staticmethod

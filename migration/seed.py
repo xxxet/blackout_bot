@@ -55,8 +55,8 @@ def seed_groups() -> None:
                 logging.info(f"adding {day_index} {row}")
                 day_id = day_index + 1  # Day IDs start from 1 to 7
                 day = day_serv.get(day_id)
-                for hour, zone in enumerate(row):
-                    zone = zone_serv.get_zone(zone)
+                for hour, zone_name in enumerate(row):
+                    zone = zone_serv.get_zone(zone_name)
                     hour_serv.add(hour, zone, day, group)
 
         session.commit()

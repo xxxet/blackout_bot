@@ -5,7 +5,6 @@ opencv-python==4.10.0.82
 python-telegram-bot==21.3
 python-telegram-bot[job-queue]~=21.3
 pytz==2024.1
-pylint==3.2.3
 SQLAlchemy==2.0.31
 alembic==1.13.2
 flake8==7.1.0

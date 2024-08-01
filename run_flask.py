@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from src.rest.hello import run_server
 
@@ -9,4 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", help="flask port")
     args = parser.parse_args()
     config = vars(args)
-    run_server(int(str(config.get("port"))))
+    port = str(config.get("port"))
+    if len(port) == 0:
+        port = str(os.getenv("port"))
+    run_server(int(port))

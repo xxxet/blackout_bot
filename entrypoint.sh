@@ -18,8 +18,12 @@ fi
 if [ "$2" == "flask" ]; then
     run_flask "$3"
 fi
-./replicate.sh
+
+if [ "$3" == "replicate" ]; then
+    ./replicate.sh
+fi
+
 alembic upgrade head
-exec litestream replicate -exec "python3 run_bot.py --token '$4'"
+exec litestream replicate -exec "python3 run_bot.py"
 
 

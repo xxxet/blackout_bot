@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", help="flask port")
     args = parser.parse_args()
     config = vars(args)
-    port = str(config.get("PORT"))
+    port = str(config.get("port"))
     if len(port) == 0:
         port = str(os.getenv("PORT"))
     run_server(int(port))

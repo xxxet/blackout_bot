@@ -11,6 +11,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
     token = str(config.get("token"))
+    print("token param: " + token)
     if len(token) == 0:
-        token = str(os.getenv("token"))
+        token = str(os.getenv("TOKEN"))
+    print("token after getenv: " + token)
     main(token)

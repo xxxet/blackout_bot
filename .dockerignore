@@ -1,0 +1,17 @@
+# flyctl launch added from .gitignore
+**/.venv*
+**/venv*
+**/__pycache__
+**/tests/__pycache__
+**/.pytest_cache
+**/.idea/*
+
+# flyctl launch added from .idea/.gitignore
+# Default ignored files
+.idea/shelf
+.idea/workspace.xml
+
+# flyctl launch added from .mypy_cache/.gitignore
+# Automatically created by mypy
+.mypy_cache/**/*
+fly.toml

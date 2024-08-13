@@ -15,4 +15,4 @@ WORKDIR /home/app
 ENV PATH="$PATH:/home/app/.local/bin"
 RUN pip install -r requirements.txt
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["no_venv", "flask", "replicate"]
+CMD ["no_venv", "no_flask", "replicate"]

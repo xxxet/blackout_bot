@@ -9,10 +9,10 @@ generate initial migration:
 create revision:
 alembic revision -m "seed"
 `
-run in docker 
+run in docker using venv on host:
 `
-sudo ./run_migrations.sh "bot_id"
-sudo ./run_in_docker.sh "bot_id"
+sudo ./hostvenv_run_in_docker.sh
+
 `
 
 install precommit hooks 

@@ -1,7 +1,7 @@
-FROM python:3.12-bookworm
+FROM python:3.12-slim
 ARG LITESTREAM="v0.3.13"
 ARG ARCH="arm64"
-RUN apt-get update && apt-get install libgl1 -y
+RUN apt-get update && apt-get install libgl1 libglib2.0-0 libsm6 libxrender1 libxext6 -y
 ADD https://github.com/benbjohnson/litestream/releases/download/${LITESTREAM}/litestream-${LITESTREAM}-linux-${ARCH}.deb litestream.deb
 RUN mkdir /home/app
 COPY . /home/app

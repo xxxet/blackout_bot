@@ -139,7 +139,7 @@ class OutageBot:
     ) -> None:
         if SqlService.subscribe_user(chat_id, group):
             remind_obj = self.get_time_finder(group).find_next_remind_time(
-                notify_before=self.before_time
+                notify_before=self.before_time, first_sub=True
             )
             context.job_queue.run_once(
                 self.notification,
@@ -151,7 +151,6 @@ class OutageBot:
             await context.bot.send_message(
                 text=f"You are subscribed to {group}", chat_id=chat_id
             )
-            await self.send_notif_message(chat_id, context, remind_obj)
         else:
             await context.bot.send_message(
                 text=f"You are already subscribed to {group}", chat_id=chat_id

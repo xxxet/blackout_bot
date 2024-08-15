@@ -42,7 +42,7 @@ class SqlTimeFinder:
         raise ValueError("No change in zone found")
 
     def find_next_remind_time(
-        self, notify_before: int = 0, time_delta: int = 0
+        self, notify_before: int = 0, time_delta: int = 0, first_sub: bool = True
     ) -> RemindObj:
         # now = datetime(2024, 7, 14, 21, 00, 00)
         now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
@@ -53,19 +53,16 @@ class SqlTimeFinder:
         zone_change_time = now.replace(minute=0) + timedelta(hours=hours_to_change)
         new_zone = change_h.zone.zone_name
         diff = zone_change_time - now
-        # if notif should be sent in less than notify_before, return remind time = now
-        if diff.total_seconds() / 60 <= notify_before:
-            return RemindObj(
-                group=self.group_name,
-                old_zone=old_zone,
-                new_zone=new_zone,
-                change_time=zone_change_time,
-                remind_time=now,
-            )
+
+        if first_sub is True or diff.total_seconds() / 60 <= notify_before:
+            remind_time = now
+        else:
+            remind_time = zone_change_time - timedelta(minutes=notify_before)
+
         return RemindObj(
             group=self.group_name,
             old_zone=old_zone,
             new_zone=new_zone,
             change_time=zone_change_time,
-            remind_time=zone_change_time - timedelta(minutes=notify_before),
+            remind_time=remind_time,
         )

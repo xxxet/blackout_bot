@@ -7,7 +7,8 @@ go to first version:
 generate initial migration:
 `alembic revision --autogenerate -m 'initial'
 create revision:
-alembic revision -m "seed"
+alembic revision -m "text"
+alembic revision --autogenerate
 `
 run in docker using venv on host:
 `

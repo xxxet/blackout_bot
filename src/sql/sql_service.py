@@ -57,13 +57,17 @@ class SubsRepo:
         self.db.flush()
 
     def get_subs(self) -> list[Subscription]:
-        return self.db.query(Subscription).options(joinedload(Subscription.group)).all()
+        return (
+            self.db.query(Subscription)
+            .options(joinedload(Subscription.group), joinedload(Subscription.user))
+            .all()
+        )
 
     def get_subs_for_tgid(self, tg_id: int) -> list[Subscription]:
         return (
             self.db.query(Subscription)
             .filter(Subscription.user_tg_id == tg_id)
-            .options(joinedload(Subscription.group))
+            .options(joinedload(Subscription.group), joinedload(Subscription.user))
             .all()
         )
 
@@ -73,7 +77,7 @@ class SubsRepo:
         return (
             self.db.query(Subscription)
             .filter(Subscription.user_tg_id == user.tg_id)
-            .options(joinedload(Subscription.group))
+            .options(joinedload(Subscription.group), joinedload(Subscription.user))
             .all()
         )
 
@@ -86,7 +90,7 @@ class SubsRepo:
                 Subscription.user_tg_id == user.tg_id,
                 Subscription.group_id == grp.group_id,
             )
-            .options(joinedload(Subscription.group))
+            .options(joinedload(Subscription.group), joinedload(Subscription.user))
             .all()
         )
 
@@ -113,8 +117,19 @@ class UsersRepo:
             .first()
         )
 
-    def add(self, tg_id: int, show_help: bool = False) -> User:
-        user = User(tg_id=tg_id, show_help=show_help)
+    def add(
+        self,
+        tg_id: int,
+        remind_time: int = config.DEFAULT_NOTIF,
+        suppress: bool = False,
+        show_help: bool = False,
+    ) -> User:
+        user = User(
+            tg_id=tg_id,
+            remind_before=remind_time,
+            suppress_night=False,
+            show_help=show_help,
+        )
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
@@ -254,6 +269,31 @@ class SqlService:
             user_repo = UsersRepo(session)
             user = user_repo.get_user(tg_id)
             user.show_help = show_help
+            session.commit()
+
+    @staticmethod
+    def suppress_at_night(tg_id: int, supress: bool) -> None:
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_repo = UsersRepo(session)
+            user = user_repo.get_user(tg_id)
+            user.suppress_night = supress
+            session.commit()
+
+    @staticmethod
+    def get_user(tg_id: int) -> User:
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_repo = UsersRepo(session)
+            return user_repo.get_user(tg_id)
+
+    @staticmethod
+    def user_remind_time(tg_id: int, minutes: int) -> None:
+        session_maker = config.get_session_maker()
+        with session_maker() as session:
+            user_repo = UsersRepo(session)
+            user = user_repo.get_user(tg_id)
+            user.remind_before = minutes
             session.commit()
 
     @staticmethod

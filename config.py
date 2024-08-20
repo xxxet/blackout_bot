@@ -7,7 +7,8 @@ GREY_ZONE = "grey"
 WHITE_ZONE = "white"
 ZONES = [BLACK_ZONE, GREY_ZONE, WHITE_ZONE]
 UNDEFINED_ZONE = "und"
-
+DEFAULT_NOTIF = 15
+NOTIFY_BEFORE_OPTIONS = [5, 15, 20, 30]
 engine = create_engine("sqlite:///blackout.db")
 tz = pytz.timezone("Europe/Kyiv")
 

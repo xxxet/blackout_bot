@@ -10,6 +10,8 @@ class User(Base):
     __tablename__ = "users"
     tg_id: Mapped[str] = mapped_column(String, primary_key=True)
     show_help: Mapped[bool]
+    remind_before: Mapped[int]
+    suppress_night: Mapped[bool]
     subs: Mapped[List["Subscription"]] = relationship(  # noqa
         back_populates="user", cascade="all, delete"
     )

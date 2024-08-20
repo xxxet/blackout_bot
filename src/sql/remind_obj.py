@@ -11,6 +11,7 @@ class RemindObj:
     new_zone: str
     remind_time: datetime
     change_time: datetime
+    notify_now: bool
 
     def get_msg(self) -> str:
         return (

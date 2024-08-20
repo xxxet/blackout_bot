@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     CommandHandler,
@@ -12,9 +13,9 @@ from telegram.ext import (
 
 import config
 from src.sql.models.subscription import Subscription
+from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import SqlService
 from src.sql.sql_time_finder import SqlTimeFinder
-from src.sql.remind_obj import RemindObj
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -23,14 +24,16 @@ logger = logging.getLogger(__name__)
 
 
 class OutageBot:
-
-    subscribe: str = "subscribe"
-    unsubscribe: str = "unsubscribe"
-    tomorrow: str = "tomorrow"
-    today: str = "today"
-    status: str = "status"
-    stop: str = "stop"
-    before_time: int = 15
+    subscribe_comm: str = "subscribe"
+    unsubscribe_comm: str = "unsubscribe"
+    tomorrow_comm: str = "tomorrow"
+    today_comm: str = "today"
+    status_comm: str = "status"
+    stop_comm: str = "stop"
+    # before_time: int = 15
+    config_comm: str = "config"
+    notify_time_commm = "notify"
+    suppress_comm = "suppress"
     time_finders: dict[str, SqlTimeFinder] = {}
 
     def get_time_finder(self, group: str) -> SqlTimeFinder:
@@ -43,10 +46,11 @@ class OutageBot:
 
     async def notification(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = context.job.chat_id
+        user = SqlService.get_user(chat_id)
         remind_obj = context.job.data
         await self.send_notif_message(chat_id, context, remind_obj)
         remind_obj = self.get_time_finder(remind_obj.group).find_next_remind_time(
-            notify_before=self.before_time, time_delta=self.before_time + 5
+            notify_before=user.remind_before, in_next_hour=True
         )
         context.job_queue.run_once(
             self.notification,
@@ -91,20 +95,27 @@ class OutageBot:
     ) -> None:
         keyboard = [
             [
-                InlineKeyboardButton("Stop all notifications", callback_data=self.stop),
-                InlineKeyboardButton("Status", callback_data=self.status),
+                InlineKeyboardButton(
+                    "Stop all notifications", callback_data=self.stop_comm
+                ),
+                InlineKeyboardButton("Status", callback_data=self.status_comm),
             ],
             [
                 InlineKeyboardButton(
-                    "Subscribe to group", callback_data=self.subscribe
+                    "Subscribe to group", callback_data=self.subscribe_comm
                 ),
                 InlineKeyboardButton(
-                    "Unsubscribe from group", callback_data=self.unsubscribe
+                    "Unsubscribe from group", callback_data=self.unsubscribe_comm
                 ),
             ],
             [
-                InlineKeyboardButton("Today schedule", callback_data=self.today),
-                InlineKeyboardButton("Tomorrow schedule", callback_data=self.tomorrow),
+                InlineKeyboardButton("Today schedule", callback_data=self.today_comm),
+                InlineKeyboardButton(
+                    "Tomorrow schedule", callback_data=self.tomorrow_comm
+                ),
+            ],
+            [
+                InlineKeyboardButton("Config", callback_data=self.config_comm),
             ],
         ]
 
@@ -115,6 +126,49 @@ class OutageBot:
             reply_markup=reply_markup,
         )
 
+    async def config_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "Don't notify 23:00-08:00", callback_data=self.suppress_comm
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "Notify before 5 minutes",
+                    callback_data="notify_5",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "Notify before 15 minutes",
+                    callback_data="notify_15",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "Notify before 20 minutes",
+                    callback_data="notify_20",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "Notify before 30 minutes",
+                    callback_data="notify_30",
+                )
+            ],
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Config options",
+            reply_markup=reply_markup,
+        )
+
     async def subscribe_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -122,7 +176,8 @@ class OutageBot:
         keyboard = [
             [
                 InlineKeyboardButton(
-                    grp.group_name, callback_data=f"{self.subscribe}_" + grp.group_name
+                    grp.group_name,
+                    callback_data=f"{self.subscribe_comm}_" + grp.group_name,
                 )
             ]
             for grp in groups
@@ -134,17 +189,36 @@ class OutageBot:
             reply_markup=reply_markup,
         )
 
+    async def upd_notify_time_action(
+        self, chat_id: int, notify_time: str, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        # +add flag to db
+        # delete user jobs
+        # create jobs with new notify time
+        pass
+
+    async def suppress_notif_action(
+        self, chat_id: int, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        # +add flag to db
+        pass
+
     async def subscribe_action(
         self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if SqlService.subscribe_user(chat_id, group):
+            user = SqlService.get_user(chat_id)
             remind_obj = self.get_time_finder(group).find_next_remind_time(
-                notify_before=self.before_time, first_sub=True
+                notify_before=user.remind_before
             )
+
+            if not remind_obj.notify_now:
+                await self.send_notif_message(chat_id, context, remind_obj)
+
             context.job_queue.run_once(
                 self.notification,
                 name=str(chat_id),
-                when=remind_obj.remind_time,
+                when=1 if remind_obj.notify_now else remind_obj.remind_time,
                 data=remind_obj,
                 chat_id=chat_id,
             )
@@ -165,7 +239,7 @@ class OutageBot:
             [
                 InlineKeyboardButton(
                     sub.group.group_name,
-                    callback_data=f"{self.unsubscribe}_" + sub.group.group_name,
+                    callback_data=f"{self.unsubscribe_comm}_" + sub.group.group_name,
                 )
             ]
             for sub in subs
@@ -211,7 +285,7 @@ class OutageBot:
         for sub in subs:
             remind_obj = self.get_time_finder(
                 sub.group.group_name
-            ).find_next_remind_time(notify_before=self.before_time)
+            ).find_next_remind_time(notify_before=sub.user.remind_before)
             await self.send_notif_message(chat_id, context, remind_obj)
 
     async def jobs_command(
@@ -272,21 +346,29 @@ class OutageBot:
         query = update.callback_query
         await query.answer(text=f"Selected option: {query.data}")
         match query.data.split("_"):
-            case [self.subscribe]:
+            case [self.config_comm]:
+                await self.config_command(update, callback)
+            case [self.subscribe_comm]:
                 await self.subscribe_command(update, callback)
-            case [self.unsubscribe]:
+            case [self.unsubscribe_comm]:
                 await self.unsubscribe_command(update, callback)
-            case [self.stop]:
+            case [self.stop_comm]:
                 await self.stop_command(update, callback)
-            case [self.status]:
+            case [self.status_comm]:
                 await self.status_command(update, callback)
-            case [self.today]:
+            case [self.today_comm]:
                 await self.today_command(update, callback)
-            case [self.tomorrow]:
+            case [self.tomorrow_comm]:
                 await self.tomorrow_command(update, callback)
-            case [self.subscribe, group]:
+            case [self.notify_time_commm, time]:
+                await self.upd_notify_time_action(
+                    update.effective_user.id, time, callback
+                )
+            case [self.suppress_comm]:
+                await self.suppress_notif_action(update.effective_user.id, callback)
+            case [self.subscribe_comm, group]:
                 await self.subscribe_action(update.effective_user.id, group, callback)
-            case [self.unsubscribe, group]:
+            case [self.unsubscribe_comm, group]:
                 await self.unsubscribe_action(update.effective_user.id, group, callback)
 
     def show_help(self, app: Application) -> None:
@@ -307,11 +389,11 @@ class OutageBot:
         for sub in subs:
             remind_obj = self.get_time_finder(
                 sub.group.group_name
-            ).find_next_remind_time(notify_before=self.before_time)
+            ).find_next_remind_time(notify_before=sub.user.remind_before)
             app.job_queue.run_once(
                 self.notification,
                 name=str(sub.user_tg_id),
-                when=remind_obj.remind_time + timedelta(minutes=1),
+                when=1 if remind_obj.notify_now else remind_obj.remind_time,
                 data=remind_obj,
                 chat_id=sub.user_tg_id,
             )

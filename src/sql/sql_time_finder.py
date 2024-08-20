@@ -42,27 +42,32 @@ class SqlTimeFinder:
         raise ValueError("No change in zone found")
 
     def find_next_remind_time(
-        self, notify_before: int = 0, time_delta: int = 0, first_sub: bool = True
+        self, notify_before: int = 0, in_next_hour: bool = False
     ) -> RemindObj:
-        # now = datetime(2024, 7, 14, 21, 00, 00)
-        now = datetime.now(tz=self.tz) + timedelta(minutes=time_delta)
-        _, old_zone = self.get_hour(now.weekday(), now.hour)
-        change_h, hours_to_change = self.__look_for_change_in_week(
-            now.weekday(), now.hour
-        )
-        zone_change_time = now.replace(minute=0) + timedelta(hours=hours_to_change)
-        new_zone = change_h.zone.zone_name
-        diff = zone_change_time - now
+        notify_now = False
 
-        if first_sub is True or diff.total_seconds() / 60 <= notify_before:
-            remind_time = now
+        if in_next_hour:
+            start_time = datetime.now(tz=self.tz).replace(minute=0) + timedelta(hours=1)
         else:
-            remind_time = zone_change_time - timedelta(minutes=notify_before)
+            start_time = datetime.now(tz=self.tz)
+
+        _, old_zone = self.get_hour(start_time.weekday(), start_time.hour)
+        change_h, hours_to_change = self.__look_for_change_in_week(
+            start_time.weekday(), start_time.hour
+        )
+        zone_change_time = start_time.replace(minute=0) + timedelta(
+            hours=hours_to_change
+        )
+        new_zone = change_h.zone.zone_name
+        diff = zone_change_time - datetime.now(self.tz)
+        if diff.total_seconds() / 60 <= notify_before:
+            notify_now = True
 
         return RemindObj(
             group=self.group_name,
             old_zone=old_zone,
             new_zone=new_zone,
             change_time=zone_change_time,
-            remind_time=remind_time,
+            remind_time=zone_change_time - timedelta(minutes=notify_before),
+            notify_now=notify_now,
         )

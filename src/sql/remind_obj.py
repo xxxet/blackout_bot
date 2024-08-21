@@ -20,6 +20,14 @@ class RemindObj:
             f"to {self.new_zone}  {self.symbol(self.new_zone)} at {self.change_time.strftime("%H:%M")}"
         )
 
+    def __repr__(self) -> str:
+        return repr(
+            f"notify_now: {self.notify_now} group: {self.group} "
+            f"old_zone: {self.old_zone} new_zone: {self.new_zone} "
+            f"remind_time: {self.remind_time.strftime("%m-%d-%Y, %H:%M %Z")} "
+            f"change_time:  {self.change_time.strftime("%m-%d-%Y, %H:%M %Z")}"
+        )
+
     @staticmethod
     def symbol(zone: str) -> str:
         match zone:

@@ -7,7 +7,7 @@ create_venv() {
 }
 
 run_flask() {
-  python3 run_flask.py --port "$1" &
+  python3 run_flask.py &
 }
 
 
@@ -16,7 +16,7 @@ if [ "$1" == "venv" ]; then
 fi
 
 if [ "$2" == "flask" ]; then
-    run_flask "$3"
+    run_flask
 fi
 
 alembic upgrade head

@@ -1,31 +1,40 @@
 Run last alembic migration:
 `alembic upgrade head`
 
-go to first version:
+go to previous version:
 `alembic downgrade rev#`
 
 generate initial migration:
-`alembic revision --autogenerate -m 'initial'
+```
+alembic revision --autogenerate -m 'initial'
 create revision:
 alembic revision -m "text"
 alembic revision --autogenerate
-`
+```
 run in docker using venv on host:
-`
-sudo ./hostvenv_run_in_docker.sh
 
 `
+sudo TOKEN="token" ./hostvenv_run_in_docker.sh
+`
 
-install precommit hooks 
+build docker container with bot and run:
+```
+docker build . -t blackout
+docker run -e TOKEN="token" -e AWS_ACCESS_KEY_ID="key" -e AWS_SECRET_ACCESS_KEY="secret" --rm blackout  
+```
+
+install precommit hooks:
 `
 pre-commit install
 pre-commit run --all-files
 `
-deploy on fly.io without autoscaling
+
+deploy on fly.io without autoscaling:
 `
 fly deploy --ha=false   
 `
-scale app
+
+scale app:
 `
 fly scale show
 fly scale count 1

@@ -24,8 +24,8 @@ class RemindObj:
         return repr(
             f"notify_now: {self.notify_now} group: {self.group} "
             f"old_zone: {self.old_zone} new_zone: {self.new_zone} "
-            f"remind_time: {self.remind_time.strftime("%m-%d-%Y, %H:%M %Z")} "
-            f"change_time:  {self.change_time.strftime("%m-%d-%Y, %H:%M %Z")}"
+            f"remind_time: {self.remind_time.strftime("%m-%d-%Y, %H:%M")} "
+            f"change_time:  {self.change_time.strftime("%m-%d-%Y, %H:%M")}"
         )
 
     @staticmethod

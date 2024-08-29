@@ -1,5 +1,7 @@
+import pathlib
+
 import pytz
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 
 BLACK_ZONE = "black"
@@ -9,9 +11,13 @@ ZONES = [BLACK_ZONE, GREY_ZONE, WHITE_ZONE]
 UNDEFINED_ZONE = "und"
 DEFAULT_NOTIF = 15
 NOTIFY_BEFORE_OPTIONS = [DEFAULT_NOTIF, 15, 20, 30]
-engine = create_engine("sqlite:///blackout.db")
+BASE_PATH = pathlib.Path(__file__).parent.absolute()
 tz = pytz.timezone("Europe/Kyiv")
 
 
-def get_session_maker() -> Session:
-    return sessionmaker(bind=engine, expire_on_commit=False)
+def get_engine() -> Engine:
+    return create_engine(f"sqlite:///{BASE_PATH.joinpath("blackout.db")}")
+
+
+def get_session_maker() -> sessionmaker[Session]:
+    return sessionmaker(bind=get_engine(), expire_on_commit=False)

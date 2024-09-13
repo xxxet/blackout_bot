@@ -1,6 +1,6 @@
 from datetime import time
 from typing import List
-
+from typing import Optional
 from sqlalchemy import func, and_, over
 from sqlalchemy.orm import Session, joinedload
 
@@ -263,22 +263,33 @@ class SqlService:
             return group_repo.get_groups()
 
     @staticmethod
-    def update_user_help(tg_id: int, show_help: bool) -> None:
+    def update_user(
+        tg_id: int,
+        show_help: Optional[bool] = None,
+        remind_before: Optional[int] = None,
+        suppress_night: Optional[bool] = None,
+    ) -> None:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_repo = UsersRepo(session)
             user = user_repo.get_user(tg_id)
-            user.show_help = show_help
+            if show_help is not None:
+                user.show_help = show_help
+            if remind_before is not None:
+                user.remind_before = remind_before
+            if suppress_night is not None:
+                user.suppress_night = suppress_night
             session.commit()
 
     @staticmethod
-    def suppress_at_night(tg_id: int, supress: bool) -> None:
+    def toggle_suppress_at_night(tg_id: int) -> User:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_repo = UsersRepo(session)
             user = user_repo.get_user(tg_id)
-            user.suppress_night = supress
+            user.suppress_night = not user.suppress_night
             session.commit()
+            return user
 
     @staticmethod
     def get_user(tg_id: int) -> User:
@@ -287,14 +298,14 @@ class SqlService:
             user_repo = UsersRepo(session)
             return user_repo.get_user(tg_id)
 
-    @staticmethod
-    def user_remind_time(tg_id: int, minutes: int) -> None:
-        session_maker = config.get_session_maker()
-        with session_maker() as session:
-            user_repo = UsersRepo(session)
-            user = user_repo.get_user(tg_id)
-            user.remind_before = minutes
-            session.commit()
+    # @staticmethod
+    # def user_remind_time(tg_id: int, minutes: int) -> None:
+    #     session_maker = config.get_session_maker()
+    #     with session_maker() as session:
+    #         user_repo = UsersRepo(session)
+    #         user = user_repo.get_user(tg_id)
+    #         user.remind_before = minutes
+    #         session.commit()
 
     @staticmethod
     def get_subs_for_user(tg_id: int) -> list[Subscription]:

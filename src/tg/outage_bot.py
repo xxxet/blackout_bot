@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-
+from math import floor
 
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
@@ -37,11 +37,9 @@ class OutageBot:
     time_finders: dict[str, SqlTimeFinder] = {}
 
     def get_time_finder(self, group: str) -> SqlTimeFinder:
-        if group in self.time_finders.keys():
-            return self.time_finders[group]
-        tf = SqlTimeFinder(group, config.tz)
-        tf.read_schedule()
-        self.time_finders[group] = tf
+        if group not in self.time_finders:
+            self.time_finders[group] = SqlTimeFinder(group, config.tz)
+            self.time_finders[group].read_schedule()
         return self.time_finders[group]
 
     async def notification(self, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -50,7 +48,7 @@ class OutageBot:
         remind_obj = context.job.data
         await self.send_notif_message(chat_id, context, remind_obj)
         remind_obj = self.get_time_finder(remind_obj.group).find_next_remind_time(
-            notify_before=user.remind_before, in_next_hour=True
+            notify_before=user.remind_before, hours_add=1
         )
         context.job_queue.run_once(
             self.notification,
@@ -200,8 +198,54 @@ class OutageBot:
     async def suppress_notif_action(
         self, chat_id: int, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        # +add flag to db
-        pass
+        user = SqlService.toggle_suppress_at_night(chat_id)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Suppress at night status is "
+            f"{'enabled' if user.suppress_night else 'disabled'}",
+        )
+        jobs = context.job_queue.get_jobs_by_name(str(chat_id))
+
+        for job in jobs:
+            suppressed_interval, remind_obj = self.check_for_suppressed_notification(
+                job.data.group,
+                user.remind_before,
+                job.job.next_run_time,
+                suppress=user.suppress_night,
+            )
+            if suppressed_interval:
+                if isinstance(remind_obj, RemindObj):
+                    job.schedule_removal()
+                    context.job_queue.run_once(
+                        self.notification,
+                        name=str(chat_id),
+                        when=remind_obj.remind_time,
+                        data=remind_obj,
+                        chat_id=chat_id,
+                    )
+
+    def check_for_suppressed_notification(
+        self, group: str, remind_before: int, next_run: datetime, suppress: bool
+    ) -> tuple[bool, RemindObj] | tuple[bool, None]:
+
+        now = datetime.now(config.tz)
+        today_23 = now.replace(hour=23, minute=0, second=0)
+        tomorrow_8 = (now + timedelta(days=1)).replace(hour=8, minute=0, second=0)
+
+        if today_23 <= next_run <= tomorrow_8 and suppress:
+            hours_remaining = floor((tomorrow_8 - now).seconds / 3600)
+            next_remind = self.get_time_finder(group).find_next_remind_time(
+                notify_before=remind_before, hours_add=hours_remaining
+            )
+            return True, next_remind
+
+        if next_run >= tomorrow_8 and not suppress:
+            next_remind = self.get_time_finder(group).find_next_remind_time(
+                notify_before=remind_before
+            )
+            return True, next_remind
+
+        return False, None
 
     async def subscribe_action(
         self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
@@ -382,21 +426,31 @@ class OutageBot:
                     data="The bot has been updated, to see help, try /start",
                     chat_id=user.tg_id,
                 )
-                SqlService.update_user_help(user.tg_id, False)
+                SqlService.update_user(user.tg_id, show_help=False)
 
     def create_jobs(self, app: Application) -> None:
         subs = SqlService.get_all_subs()
         for sub in subs:
-            remind_obj = self.get_time_finder(
-                sub.group.group_name
-            ).find_next_remind_time(notify_before=sub.user.remind_before)
-            app.job_queue.run_once(
-                self.notification,
-                name=str(sub.user_tg_id),
-                when=1 if remind_obj.notify_now else remind_obj.remind_time,
-                data=remind_obj,
-                chat_id=sub.user_tg_id,
+            suppressed_notification, remind_obj = (
+                self.check_for_suppressed_notification(
+                    sub.group.group_name,
+                    sub.user.remind_before,
+                    datetime.now(tz=config.tz),
+                    suppress=sub.user.suppress_night,
+                )
             )
+            if not suppressed_notification:
+                remind_obj = self.get_time_finder(
+                    sub.group.group_name
+                ).find_next_remind_time(notify_before=sub.user.remind_before)
+            if isinstance(remind_obj, RemindObj):
+                app.job_queue.run_once(
+                    self.notification,
+                    name=str(sub.user_tg_id),
+                    when=1 if remind_obj.notify_now else remind_obj.remind_time,
+                    data=remind_obj,
+                    chat_id=sub.user_tg_id,
+                )
 
 
 def main(token: str) -> None:

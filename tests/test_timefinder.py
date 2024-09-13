@@ -14,7 +14,7 @@ class TestTimeFinder:
         """Test notification before 'notify before time'"""
         tf = SqlTimeFinder("group5", config.tz)
         tf.read_schedule()
-        remind = tf.find_next_remind_time(15, in_next_hour=False)
+        remind = tf.find_next_remind_time(15)
         with soft_assertions():
             assert_that(remind.notify_now).is_equal_to(False)
             assert_that(remind.new_zone).matches("white")
@@ -31,7 +31,7 @@ class TestTimeFinder:
         """Test notification in 'notify before time'"""
         tf = SqlTimeFinder("group5", config.tz)
         tf.read_schedule()
-        remind = tf.find_next_remind_time(15, in_next_hour=False)
+        remind = tf.find_next_remind_time(15)
         with soft_assertions():
             assert_that(remind.notify_now).is_equal_to(True)
             assert_that(remind.new_zone).matches("white")
@@ -48,7 +48,7 @@ class TestTimeFinder:
         """Test notification for next hour"""
         tf = SqlTimeFinder("group5", config.tz)
         tf.read_schedule()
-        remind = tf.find_next_remind_time(15, in_next_hour=True)
+        remind = tf.find_next_remind_time(15, hours_add=1)
         with soft_assertions():
             assert_that(remind.notify_now).is_equal_to(False)
             assert_that(remind.new_zone).matches("black")

@@ -42,12 +42,14 @@ class SqlTimeFinder:
         raise ValueError("No change in zone found")
 
     def find_next_remind_time(
-        self, notify_before: int = 0, in_next_hour: bool = False
+        self, notify_before: int = 0, hours_add: int = 0
     ) -> RemindObj:
         notify_now = False
 
-        if in_next_hour:
-            start_time = datetime.now(tz=self.tz).replace(minute=0) + timedelta(hours=1)
+        if hours_add > 0:
+            start_time = datetime.now(tz=self.tz).replace(minute=0) + timedelta(
+                hours=hours_add
+            )
         else:
             start_time = datetime.now(tz=self.tz)
 

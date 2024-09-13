@@ -1,3 +1,4 @@
+import os
 import pathlib
 
 import pytz
@@ -16,7 +17,8 @@ tz = pytz.timezone("Europe/Kyiv")
 
 
 def get_engine() -> Engine:
-    return create_engine(f"sqlite:///{BASE_PATH.joinpath("blackout.db")}")
+    dbname = os.environ.get("BLACKOUT_DB", "blackout.db")
+    return create_engine(f"sqlite:///{BASE_PATH.joinpath(dbname)}")
 
 
 def get_session_maker() -> sessionmaker[Session]:

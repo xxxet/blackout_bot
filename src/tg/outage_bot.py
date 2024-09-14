@@ -207,26 +207,25 @@ class OutageBot:
         jobs = context.job_queue.get_jobs_by_name(str(chat_id))
 
         for job in jobs:
-            suppressed_interval, remind_obj = self.check_for_suppressed_notification(
+            remind_obj = self.check_for_suppressed_notification(
                 job.data.group,
                 user.remind_before,
                 job.job.next_run_time,
                 suppress=user.suppress_night,
             )
-            if suppressed_interval:
-                if isinstance(remind_obj, RemindObj):
-                    job.schedule_removal()
-                    context.job_queue.run_once(
-                        self.notification,
-                        name=str(chat_id),
-                        when=remind_obj.remind_time,
-                        data=remind_obj,
-                        chat_id=chat_id,
-                    )
+            if isinstance(remind_obj, RemindObj):
+                job.schedule_removal()
+                context.job_queue.run_once(
+                    self.notification,
+                    name=str(chat_id),
+                    when=remind_obj.remind_time,
+                    data=remind_obj,
+                    chat_id=chat_id,
+                )
 
     def check_for_suppressed_notification(
         self, group: str, remind_before: int, next_run: datetime, suppress: bool
-    ) -> tuple[bool, RemindObj] | tuple[bool, None]:
+    ) -> RemindObj | None:
 
         now = datetime.now(config.tz)
         today_23 = now.replace(hour=23, minute=0, second=0)
@@ -237,15 +236,15 @@ class OutageBot:
             next_remind = self.get_time_finder(group).find_next_remind_time(
                 notify_before=remind_before, hours_add=hours_remaining
             )
-            return True, next_remind
+            return next_remind
 
         if next_run >= tomorrow_8 and not suppress:
             next_remind = self.get_time_finder(group).find_next_remind_time(
                 notify_before=remind_before
             )
-            return True, next_remind
+            return next_remind
 
-        return False, None
+        return None
 
     async def subscribe_action(
         self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
@@ -431,26 +430,23 @@ class OutageBot:
     def create_jobs(self, app: Application) -> None:
         subs = SqlService.get_all_subs()
         for sub in subs:
-            suppressed_notification, remind_obj = (
-                self.check_for_suppressed_notification(
-                    sub.group.group_name,
-                    sub.user.remind_before,
-                    datetime.now(tz=config.tz),
-                    suppress=sub.user.suppress_night,
-                )
+            remind_obj = self.check_for_suppressed_notification(
+                sub.group.group_name,
+                sub.user.remind_before,
+                datetime.now(tz=config.tz),
+                suppress=sub.user.suppress_night,
             )
-            if not suppressed_notification:
+            if remind_obj is None:
                 remind_obj = self.get_time_finder(
                     sub.group.group_name
                 ).find_next_remind_time(notify_before=sub.user.remind_before)
-            if isinstance(remind_obj, RemindObj):
-                app.job_queue.run_once(
-                    self.notification,
-                    name=str(sub.user_tg_id),
-                    when=1 if remind_obj.notify_now else remind_obj.remind_time,
-                    data=remind_obj,
-                    chat_id=sub.user_tg_id,
-                )
+            app.job_queue.run_once(
+                self.notification,
+                name=str(sub.user_tg_id),
+                when=1 if remind_obj.notify_now else remind_obj.remind_time,
+                data=remind_obj,
+                chat_id=sub.user_tg_id,
+            )
 
 
 def main(token: str) -> None:

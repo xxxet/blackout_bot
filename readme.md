@@ -11,6 +11,13 @@ create revision:
 alembic revision -m "text"
 alembic revision --autogenerate
 ```
+
+
+Run tests:
+```
+cp blackout.db blackout-test.db
+BLACKOUT_DB=blackout-test.db tests
+```
 run in docker using venv on host:
 
 `

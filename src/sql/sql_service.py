@@ -237,7 +237,7 @@ class SqlService:
                 return False
             ex_sub = subs_repo.get_subs_for_user_grp(user, grp)
             if len(ex_sub) == 0:
-                subs_repo.add(user, grp)
+                return subs_repo.add(user, grp)
                 return True
             return False
 

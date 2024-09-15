@@ -23,6 +23,12 @@ class MockContext:
         self.job_queue = MockJobQueue(bot)
 
 
+class MockApplication:
+    def __init__(self, context: MockContext):
+        self.context = context
+        self.job_queue = context.job_queue
+
+
 class MockJob:
     def __init__(
         self,

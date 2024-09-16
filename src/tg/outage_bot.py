@@ -18,9 +18,9 @@ from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import SqlService
 from src.sql.sql_time_finder import SqlTimeFinder
 
+SILENT_START = 23
 SILENT_STOP = 8
 
-SILENT_START = 23
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -50,12 +50,92 @@ class OutageBot:
             self.time_finders[group].read_schedule()
         return self.time_finders[group]
 
+    def schedule_notification_job(
+        self, user: User, group_name: str, hours_add: int = 0
+    ) -> None:
+        remind_obj = self.check_for_suppressed_notification(
+            group_name,
+            user.remind_before,
+            datetime.now(tz=config.tz) + timedelta(hours=hours_add),
+            suppress=user.suppress_night,
+        )
+        if remind_obj is None:
+            remind_obj = self.get_time_finder(group_name).find_next_remind_time(
+                notify_before=user.remind_before, hours_add=hours_add
+            )
+        self.app.job_queue.run_once(
+            self.notification,
+            name=str(user.tg_id),
+            when=1 if remind_obj.notify_now else remind_obj.remind_time,
+            data=remind_obj,
+            chat_id=user.tg_id,
+        )
+
+    def check_for_suppressed_notification(
+        self, group: str, remind_before: int, next_run: datetime, suppress: bool
+    ) -> RemindObj | None:
+
+        now = datetime.now(config.tz)
+        today_silent_start = now.replace(hour=SILENT_START, minute=0, second=0)
+        tomorrow_silent_end = (now + timedelta(days=1)).replace(
+            hour=SILENT_STOP, minute=0, second=0
+        )
+
+        if today_silent_start <= next_run <= tomorrow_silent_end and suppress:
+            hours_remaining = floor((tomorrow_silent_end - now).seconds / 3600)
+            next_remind = self.get_time_finder(group).find_next_remind_time(
+                notify_before=remind_before, hours_add=hours_remaining
+            )
+            return next_remind
+
+        if next_run >= tomorrow_silent_end and not suppress:
+            next_remind = self.get_time_finder(group).find_next_remind_time(
+                notify_before=remind_before
+            )
+            return next_remind
+
+        return None
+
     async def notification(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = context.job.chat_id
         user = SqlService.get_user(chat_id)
         remind_obj = context.job.data
         await self.send_notif_message(chat_id, context, remind_obj)
         self.schedule_notification_job(user, remind_obj.group, hours_add=1)
+
+    async def subscribe_action(
+        self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        if SqlService.subscribe_user(chat_id, group):
+            user = SqlService.get_user(chat_id)
+            self.schedule_notification_job(user, group)
+            await context.bot.send_message(
+                text=f"You are subscribed to {group}", chat_id=chat_id
+            )
+        else:
+            await context.bot.send_message(
+                text=f"You are already subscribed to {group}", chat_id=chat_id
+            )
+
+    async def subscribe_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        groups = SqlService.get_all_groups()
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    grp.group_name,
+                    callback_data=f"{self.subscribe_comm}_" + grp.group_name,
+                )
+            ]
+            for grp in groups
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="Choose group",
+            reply_markup=reply_markup,
+        )
 
     async def message(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = context.job.chat_id
@@ -166,26 +246,6 @@ class OutageBot:
             reply_markup=reply_markup,
         )
 
-    async def subscribe_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        groups = SqlService.get_all_groups()
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    grp.group_name,
-                    callback_data=f"{self.subscribe_comm}_" + grp.group_name,
-                )
-            ]
-            for grp in groups
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await context.bot.send_message(
-            chat_id=update.effective_user.id,
-            text="Choose group",
-            reply_markup=reply_markup,
-        )
-
     async def upd_notify_time_action(
         self, chat_id: int, notify_time: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -221,45 +281,6 @@ class OutageBot:
                     data=remind_obj,
                     chat_id=chat_id,
                 )
-
-    def check_for_suppressed_notification(
-        self, group: str, remind_before: int, next_run: datetime, suppress: bool
-    ) -> RemindObj | None:
-
-        now = datetime.now(config.tz)
-        today_silent_start = now.replace(hour=SILENT_START, minute=0, second=0)
-        tomorrow_silent_end = (now + timedelta(days=1)).replace(
-            hour=SILENT_STOP, minute=0, second=0
-        )
-
-        if today_silent_start <= next_run <= tomorrow_silent_end and suppress:
-            hours_remaining = floor((tomorrow_silent_end - now).seconds / 3600)
-            next_remind = self.get_time_finder(group).find_next_remind_time(
-                notify_before=remind_before, hours_add=hours_remaining
-            )
-            return next_remind
-
-        if next_run >= tomorrow_silent_end and not suppress:
-            next_remind = self.get_time_finder(group).find_next_remind_time(
-                notify_before=remind_before
-            )
-            return next_remind
-
-        return None
-
-    async def subscribe_action(
-        self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        if SqlService.subscribe_user(chat_id, group):
-            user = SqlService.get_user(chat_id)
-            self.schedule_notification_job(user, group)
-            await context.bot.send_message(
-                text=f"You are subscribed to {group}", chat_id=chat_id
-            )
-        else:
-            await context.bot.send_message(
-                text=f"You are already subscribed to {group}", chat_id=chat_id
-            )
 
     async def unsubscribe_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -414,27 +435,6 @@ class OutageBot:
                     chat_id=user.tg_id,
                 )
                 SqlService.update_user(user.tg_id, show_help=False)
-
-    def schedule_notification_job(
-        self, user: User, group_name: str, hours_add: int = 0
-    ) -> None:
-        remind_obj = self.check_for_suppressed_notification(
-            group_name,
-            user.remind_before,
-            datetime.now(tz=config.tz) + timedelta(hours=hours_add),
-            suppress=user.suppress_night,
-        )
-        if remind_obj is None:
-            remind_obj = self.get_time_finder(group_name).find_next_remind_time(
-                notify_before=user.remind_before, hours_add=hours_add
-            )
-        self.app.job_queue.run_once(
-            self.notification,
-            name=str(user.tg_id),
-            when=1 if remind_obj.notify_now else remind_obj.remind_time,
-            data=remind_obj,
-            chat_id=user.tg_id,
-        )
 
     def create_jobs(self) -> None:
         subs = SqlService.get_all_subs()

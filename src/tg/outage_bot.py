@@ -205,6 +205,7 @@ class OutageBot:
     async def config_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        user = SqlService.get_user(update.effective_user.id)
 
         keyboard = [
             [
@@ -229,13 +230,23 @@ class OutageBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(
             chat_id=update.effective_user.id,
-            text="Config options",
+            text=(
+                "Config options"
+                if user is None
+                else f"Current config:\n"
+                f"remind before {user.remind_before} minutes\n"
+                f"suppress is {user.suppress_night}"
+            ),
             reply_markup=reply_markup,
         )
 
     async def upd_notify_time_action(
         self, chat_id: int, notify_time: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"You will be reminded {notify_time} minutes before zone change",
+        )
         subs = SqlService.get_subs_for_user(chat_id)
         await self.check_for_subscription(chat_id, subs, context)
         if len(subs) > 0:

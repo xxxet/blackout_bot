@@ -268,7 +268,7 @@ class SqlService:
         show_help: Optional[bool] = None,
         remind_before: Optional[int] = None,
         suppress_night: Optional[bool] = None,
-    ) -> None:
+    ) -> User:
         session_maker = config.get_session_maker()
         with session_maker() as session:
             user_repo = UsersRepo(session)
@@ -280,6 +280,7 @@ class SqlService:
             if suppress_night is not None:
                 user.suppress_night = suppress_night
             session.commit()
+            return user
 
     @staticmethod
     def toggle_suppress_at_night(tg_id: int) -> User:
@@ -297,15 +298,6 @@ class SqlService:
         with session_maker() as session:
             user_repo = UsersRepo(session)
             return user_repo.get_user(tg_id)
-
-    # @staticmethod
-    # def user_remind_time(tg_id: int, minutes: int) -> None:
-    #     session_maker = config.get_session_maker()
-    #     with session_maker() as session:
-    #         user_repo = UsersRepo(session)
-    #         user = user_repo.get_user(tg_id)
-    #         user.remind_before = minutes
-    #         session.commit()
 
     @staticmethod
     def get_subs_for_user(tg_id: int) -> list[Subscription]:

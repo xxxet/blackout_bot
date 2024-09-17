@@ -18,9 +18,6 @@ from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import SqlService
 from src.sql.sql_time_finder import SqlTimeFinder
 
-SILENT_START = 23
-SILENT_STOP = 8
-
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -76,9 +73,11 @@ class OutageBot:
     ) -> RemindObj | None:
 
         now = datetime.now(config.tz)
-        today_silent_start = now.replace(hour=SILENT_START, minute=0, second=0)
+        today_silent_start = now.replace(
+            hour=config.SILENT_PERIOD_START, minute=0, second=0
+        )
         tomorrow_silent_end = (now + timedelta(days=1)).replace(
-            hour=SILENT_STOP, minute=0, second=0
+            hour=config.SILENT_PERIOD_STOP, minute=0, second=0
         )
 
         if today_silent_start <= next_run <= tomorrow_silent_end and suppress:
@@ -210,34 +209,22 @@ class OutageBot:
         keyboard = [
             [
                 InlineKeyboardButton(
-                    "Don't notify 23:00-08:00", callback_data=self.suppress_comm
+                    f"Notify before {option} minutes",
+                    callback_data=f"notify_{option}",
                 )
-            ],
-            [
-                InlineKeyboardButton(
-                    "Notify before 5 minutes",
-                    callback_data="notify_5",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "Notify before 15 minutes",
-                    callback_data="notify_15",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "Notify before 20 minutes",
-                    callback_data="notify_20",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "Notify before 30 minutes",
-                    callback_data="notify_30",
-                )
-            ],
+            ]
+            for option in config.NOTIFY_BEFORE_OPTIONS
         ]
+
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    f"Toggle don't notify period in "
+                    f"{config.SILENT_PERIOD_START}-{config.SILENT_PERIOD_STOP}",
+                    callback_data=self.suppress_comm,
+                )
+            ]
+        )
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(
@@ -249,10 +236,14 @@ class OutageBot:
     async def upd_notify_time_action(
         self, chat_id: int, notify_time: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        # +add flag to db
-        # delete user jobs
-        # create jobs with new notify time
-        pass
+        subs = SqlService.get_subs_for_user(chat_id)
+        await self.check_for_subscription(chat_id, subs, context)
+        if len(subs) > 0:
+            user = SqlService.update_user(tg_id=chat_id, remind_before=int(notify_time))
+            for job in context.job_queue.get_jobs_by_name(str(chat_id)):
+                job.schedule_removal()
+            for sub in subs:
+                self.schedule_notification_job(user, sub.group.group_name)
 
     async def suppress_notif_action(
         self, chat_id: int, context: ContextTypes.DEFAULT_TYPE
@@ -272,14 +263,14 @@ class OutageBot:
                 job.job.next_run_time,
                 suppress=user.suppress_night,
             )
-            if isinstance(remind_obj, RemindObj):
+            if remind_obj:
                 job.schedule_removal()
-                context.job_queue.run_once(
+                self.app.job_queue.run_once(
                     self.notification,
-                    name=str(chat_id),
-                    when=remind_obj.remind_time,
+                    name=str(user.tg_id),
+                    when=1 if remind_obj.notify_now else remind_obj.remind_time,
                     data=remind_obj,
-                    chat_id=chat_id,
+                    chat_id=user.tg_id,
                 )
 
     async def unsubscribe_command(

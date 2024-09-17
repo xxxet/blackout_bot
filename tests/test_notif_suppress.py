@@ -57,7 +57,7 @@ class TestOutageBot:
             ),
         ],
     )
-    @freeze_time("2024-08-19 22:00:00", tz_offset=-3)
+    @freeze_time("2024-08-19 20:00:00")
     @pytest.mark.asyncio
     async def test_enable_suppress(
         self,
@@ -87,6 +87,7 @@ class TestOutageBot:
                 repr(reminder_after_obj)
             )
 
+    # on disable suppress notifications after 08:00 tomorrow should be rescheduled
     @pytest.mark.parametrize(
         "reminder_before,reminder_after",
         [
@@ -108,7 +109,7 @@ class TestOutageBot:
             ),
         ],
     )
-    @freeze_time("2024-08-19 22:00:00", tz_offset=-3)
+    @freeze_time("2024-08-19 20:00:00")
     @pytest.mark.asyncio
     async def test_disable_suppress(
         self,

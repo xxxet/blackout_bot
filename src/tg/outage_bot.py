@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from enum import Enum
 from math import floor
 
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -25,17 +26,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class BotCommands(Enum):
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    TOMORROW = "tomorrow"
+    TODAY = "today"
+    STATUS = "status"
+    STOP = "stop"
+    CONFIG = "config"
+    NOTIFY_TIME = "notify"
+    SUPPRESS = "suppress"
+
+
 class OutageBot:
-    subscribe_comm: str = "subscribe"
-    unsubscribe_comm: str = "unsubscribe"
-    tomorrow_comm: str = "tomorrow"
-    today_comm: str = "today"
-    status_comm: str = "status"
-    stop_comm: str = "stop"
-    # before_time: int = 15
-    config_comm: str = "config"
-    notify_time_commm = "notify"
-    suppress_comm = "suppress"
     time_finders: dict[str, SqlTimeFinder] = {}
 
     def __init__(self, app: Application):
@@ -124,7 +127,7 @@ class OutageBot:
             [
                 InlineKeyboardButton(
                     grp.group_name,
-                    callback_data=f"{self.subscribe_comm}_" + grp.group_name,
+                    callback_data=f"{BotCommands.SUBSCRIBE.value}_" + grp.group_name,
                 )
             ]
             for grp in groups
@@ -172,26 +175,29 @@ class OutageBot:
         keyboard = [
             [
                 InlineKeyboardButton(
-                    "Stop all notifications", callback_data=self.stop_comm
+                    "Stop all notifications", callback_data=BotCommands.STOP.value
                 ),
-                InlineKeyboardButton("Status", callback_data=self.status_comm),
+                InlineKeyboardButton("Status", callback_data=BotCommands.STATUS.value),
             ],
             [
                 InlineKeyboardButton(
-                    "Subscribe to group", callback_data=self.subscribe_comm
+                    "Subscribe to group", callback_data=BotCommands.SUBSCRIBE.value
                 ),
                 InlineKeyboardButton(
-                    "Unsubscribe from group", callback_data=self.unsubscribe_comm
+                    "Unsubscribe from group",
+                    callback_data=BotCommands.UNSUBSCRIBE.value,
                 ),
             ],
             [
-                InlineKeyboardButton("Today schedule", callback_data=self.today_comm),
                 InlineKeyboardButton(
-                    "Tomorrow schedule", callback_data=self.tomorrow_comm
+                    "Today schedule", callback_data=BotCommands.TODAY.value
+                ),
+                InlineKeyboardButton(
+                    "Tomorrow schedule", callback_data=BotCommands.TOMORROW.value
                 ),
             ],
             [
-                InlineKeyboardButton("Config", callback_data=self.config_comm),
+                InlineKeyboardButton("Config", callback_data=BotCommands.CONFIG.value),
             ],
         ]
 
@@ -222,7 +228,7 @@ class OutageBot:
                 InlineKeyboardButton(
                     f"Toggle don't notify period in "
                     f"{config.SILENT_PERIOD_START}-{config.SILENT_PERIOD_STOP}",
-                    callback_data=self.suppress_comm,
+                    callback_data=BotCommands.SUPPRESS.value,
                 )
             ]
         )
@@ -293,7 +299,8 @@ class OutageBot:
             [
                 InlineKeyboardButton(
                     sub.group.group_name,
-                    callback_data=f"{self.unsubscribe_comm}_" + sub.group.group_name,
+                    callback_data=f"{BotCommands.UNSUBSCRIBE.value}_"
+                    + sub.group.group_name,
                 )
             ]
             for sub in subs
@@ -400,29 +407,29 @@ class OutageBot:
         query = update.callback_query
         await query.answer(text=f"Selected option: {query.data}")
         match query.data.split("_"):
-            case [self.config_comm]:
+            case [BotCommands.CONFIG.value]:
                 await self.config_command(update, callback)
-            case [self.subscribe_comm]:
+            case [BotCommands.SUBSCRIBE.value]:
                 await self.subscribe_command(update, callback)
-            case [self.unsubscribe_comm]:
+            case [BotCommands.UNSUBSCRIBE.value]:
                 await self.unsubscribe_command(update, callback)
-            case [self.stop_comm]:
+            case [BotCommands.STOP.value]:
                 await self.stop_command(update, callback)
-            case [self.status_comm]:
+            case [BotCommands.STATUS.value]:
                 await self.status_command(update, callback)
-            case [self.today_comm]:
+            case [BotCommands.TODAY.value]:
                 await self.today_command(update, callback)
-            case [self.tomorrow_comm]:
+            case [BotCommands.TOMORROW.value]:
                 await self.tomorrow_command(update, callback)
-            case [self.notify_time_commm, time]:
+            case [BotCommands.NOTIFY_TIME.value, time]:
                 await self.upd_notify_time_action(
                     update.effective_user.id, time, callback
                 )
-            case [self.suppress_comm]:
+            case [BotCommands.SUPPRESS.value]:
                 await self.suppress_notif_action(update.effective_user.id, callback)
-            case [self.subscribe_comm, group]:
+            case [BotCommands.SUBSCRIBE.value, group]:
                 await self.subscribe_action(update.effective_user.id, group, callback)
-            case [self.unsubscribe_comm, group]:
+            case [BotCommands.UNSUBSCRIBE.value, group]:
                 await self.unsubscribe_action(update.effective_user.id, group, callback)
 
     def show_help(self) -> None:
@@ -449,21 +456,21 @@ def main(token: str) -> None:
     outage_bot = OutageBot(application)
     start_handler = CommandHandler("start", outage_bot.start_command)
     subscribe_handler = CommandHandler("subscribe", outage_bot.subscribe_command)
-    unsubscribe = CommandHandler("unsubscribe", outage_bot.unsubscribe_command)
-    stop = CommandHandler("stop", outage_bot.stop_command)
-    status_command = CommandHandler("status", outage_bot.status_command)
-    today = CommandHandler("today", outage_bot.today_command)
-    tomorrow = CommandHandler("tomorrow", outage_bot.tomorrow_command)
-    jobs_command = CommandHandler("jobs", outage_bot.jobs_command)
+    unsubscribe_handler = CommandHandler("unsubscribe", outage_bot.unsubscribe_command)
+    stop_handler = CommandHandler("stop", outage_bot.stop_command)
+    status_handler = CommandHandler("status", outage_bot.status_command)
+    today_handler = CommandHandler("today", outage_bot.today_command)
+    tomorrow_handler = CommandHandler("tomorrow", outage_bot.tomorrow_command)
+    jobs_handler = CommandHandler("jobs", outage_bot.jobs_command)
     application.add_handler(CallbackQueryHandler(outage_bot.button))
     application.add_handler(start_handler)
     application.add_handler(subscribe_handler)
-    application.add_handler(unsubscribe)
-    application.add_handler(status_command)
-    application.add_handler(jobs_command)
-    application.add_handler(stop)
-    application.add_handler(today)
-    application.add_handler(tomorrow)
+    application.add_handler(unsubscribe_handler)
+    application.add_handler(status_handler)
+    application.add_handler(jobs_handler)
+    application.add_handler(stop_handler)
+    application.add_handler(today_handler)
+    application.add_handler(tomorrow_handler)
     outage_bot.create_jobs()
     outage_bot.show_help()
     application.run_polling()

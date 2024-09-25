@@ -4,7 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-
+from sqlalchemy.schema import SchemaItem
 from src.sql.models import Base
 
 # this is the Alembic Config object, which provides
@@ -47,6 +47,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -79,3 +80,10 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+
+
+def include_object(
+    object: SchemaItem, name: str, type_: str, reflected: bool, compare_to: SchemaItem
+) -> bool:
+    # Don't include these tables. Add other tables to list as required.
+    return "litestream" not in name

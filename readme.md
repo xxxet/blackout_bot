@@ -16,7 +16,10 @@ alembic revision --autogenerate
 Run tests:
 ```
 cp blackout.db blackout-test.db
-BLACKOUT_DB=blackout-test.db tests
+BLACKOUT_DB=blackout-test.db pytest
+
+with coverage report 
+BLACKOUT_DB=blackout-test.db pytest --cov --cov-report=html:coverage_re
 ```
 run in docker using venv on host:
 

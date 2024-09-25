@@ -19,7 +19,6 @@ from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import SqlService
 from src.sql.sql_time_finder import SqlTimeFinder
 
-
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -44,34 +43,34 @@ class OutageBot:
     def __init__(self, app: Application):
         self.app = app
 
-    def get_time_finder(self, group: str) -> SqlTimeFinder:
+    def _get_time_finder(self, group: str) -> SqlTimeFinder:
         if group not in self.time_finders:
             self.time_finders[group] = SqlTimeFinder(group, config.tz)
             self.time_finders[group].read_schedule()
         return self.time_finders[group]
 
-    def schedule_notification_job(
+    def _schedule_notification_job(
         self, user: User, group_name: str, hours_add: int = 0
     ) -> None:
-        remind_obj = self.check_for_suppressed_notification(
+        remind_obj = self._check_for_suppressed_notification(
             group_name,
             user.remind_before,
             datetime.now(tz=config.tz) + timedelta(hours=hours_add),
             suppress=user.suppress_night,
         )
         if remind_obj is None:
-            remind_obj = self.get_time_finder(group_name).find_next_remind_time(
+            remind_obj = self._get_time_finder(group_name).find_next_remind_time(
                 notify_before=user.remind_before, hours_add=hours_add
             )
         self.app.job_queue.run_once(
-            self.notification,
+            self._notification,
             name=str(user.tg_id),
             when=1 if remind_obj.notify_now else remind_obj.remind_time,
             data=remind_obj,
             chat_id=user.tg_id,
         )
 
-    def check_for_suppressed_notification(
+    def _check_for_suppressed_notification(
         self, group: str, remind_before: int, next_run: datetime, suppress: bool
     ) -> RemindObj | None:
 
@@ -85,32 +84,35 @@ class OutageBot:
 
         if today_silent_start <= next_run <= tomorrow_silent_end and suppress:
             hours_remaining = floor((tomorrow_silent_end - now).seconds / 3600)
-            next_remind = self.get_time_finder(group).find_next_remind_time(
+            next_remind = self._get_time_finder(group).find_next_remind_time(
                 notify_before=remind_before, hours_add=hours_remaining
             )
             return next_remind
 
         if next_run >= tomorrow_silent_end and not suppress:
-            next_remind = self.get_time_finder(group).find_next_remind_time(
+            next_remind = self._get_time_finder(group).find_next_remind_time(
                 notify_before=remind_before
             )
             return next_remind
 
         return None
 
-    async def notification(self, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def _notification(self, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_id = context.job.chat_id
         user = SqlService.get_user(chat_id)
         remind_obj = context.job.data
-        await self.send_notif_message(chat_id, context, remind_obj)
-        self.schedule_notification_job(user, remind_obj.group, hours_add=1)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=remind_obj.get_msg(),
+        )
+        self._schedule_notification_job(user, remind_obj.group, hours_add=1)
 
     async def subscribe_action(
         self, chat_id: int, group: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if SqlService.subscribe_user(chat_id, group):
             user = SqlService.get_user(chat_id)
-            self.schedule_notification_job(user, group)
+            self._schedule_notification_job(user, group)
             await context.bot.send_message(
                 text=f"You are subscribed to {group}", chat_id=chat_id
             )
@@ -137,18 +139,6 @@ class OutageBot:
             chat_id=update.effective_user.id,
             text="Choose group",
             reply_markup=reply_markup,
-        )
-
-    async def message(self, context: ContextTypes.DEFAULT_TYPE) -> None:
-        chat_id = context.job.chat_id
-        await context.bot.send_message(chat_id=chat_id, text=context.job.data)
-
-    async def send_notif_message(
-        self, chat_id: int, context: ContextTypes.DEFAULT_TYPE, remind_obj: RemindObj
-    ) -> None:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=remind_obj.get_msg(),
         )
 
     async def stop_command(
@@ -254,13 +244,13 @@ class OutageBot:
             text=f"You will be reminded {notify_time} minutes before zone change",
         )
         subs = SqlService.get_subs_for_user(chat_id)
-        await self.check_for_subscription(chat_id, subs, context)
+        await self._no_subscription_message(chat_id, subs, context)
         if len(subs) > 0:
             user = SqlService.update_user(tg_id=chat_id, remind_before=int(notify_time))
             for job in context.job_queue.get_jobs_by_name(str(chat_id)):
                 job.schedule_removal()
             for sub in subs:
-                self.schedule_notification_job(user, sub.group.group_name)
+                self._schedule_notification_job(user, sub.group.group_name)
 
     async def suppress_notif_action(
         self, chat_id: int, context: ContextTypes.DEFAULT_TYPE
@@ -274,7 +264,7 @@ class OutageBot:
         jobs = context.job_queue.get_jobs_by_name(str(chat_id))
 
         for job in jobs:
-            remind_obj = self.check_for_suppressed_notification(
+            remind_obj = self._check_for_suppressed_notification(
                 job.data.group,
                 user.remind_before,
                 job.job.next_run_time,
@@ -283,7 +273,7 @@ class OutageBot:
             if remind_obj:
                 job.schedule_removal()
                 self.app.job_queue.run_once(
-                    self.notification,
+                    self._notification,
                     name=str(user.tg_id),
                     when=1 if remind_obj.notify_now else remind_obj.remind_time,
                     data=remind_obj,
@@ -342,12 +332,15 @@ class OutageBot:
     ) -> None:
         chat_id = update.effective_user.id
         subs = SqlService.get_subs_for_user(chat_id)
-        await self.check_for_subscription(chat_id, subs, context)
+        await self._no_subscription_message(chat_id, subs, context)
         for sub in subs:
-            remind_obj = self.get_time_finder(
+            remind_obj = self._get_time_finder(
                 sub.group.group_name
             ).find_next_remind_time(notify_before=sub.user.remind_before)
-            await self.send_notif_message(chat_id, context, remind_obj)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=remind_obj.get_msg(),
+            )
 
     async def jobs_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -367,11 +360,11 @@ class OutageBot:
             )
         await context.bot.send_message(text=f"{list_of_jobs}", chat_id=chat_id)
 
-    async def __show_schedule_for_day(
+    async def _show_schedule_for_day(
         self, chat_id: int, day: str, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         subs = SqlService.get_subs_for_user(chat_id)
-        await self.check_for_subscription(chat_id, subs, context)
+        await self._no_subscription_message(chat_id, subs, context)
         for sub in subs:
             schedule = SqlService.get_schedule_for(day, sub.group.group_name)
             await context.bot.send_message(
@@ -386,16 +379,16 @@ class OutageBot:
     ) -> None:
         chat_id = update.effective_user.id
         today = datetime.now(config.tz).strftime("%A")
-        await self.__show_schedule_for_day(chat_id, today, context)
+        await self._show_schedule_for_day(chat_id, today, context)
 
     async def tomorrow_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         chat_id = update.effective_user.id
         tomorrow = (datetime.now(config.tz) + timedelta(days=1)).strftime("%A")
-        await self.__show_schedule_for_day(chat_id, tomorrow, context)
+        await self._show_schedule_for_day(chat_id, tomorrow, context)
 
-    async def check_for_subscription(
+    async def _no_subscription_message(
         self, chat_id: int, subs: list[Subscription], context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if len(subs) == 0:
@@ -403,7 +396,7 @@ class OutageBot:
                 chat_id=chat_id, text=f"You are not subscribed, {chat_id}"
             )
 
-    async def button(self, update: Update, callback: CallbackContext) -> None:
+    async def keyboard_handler(self, update: Update, callback: CallbackContext) -> None:
         query = update.callback_query
         await query.answer(text=f"Selected option: {query.data}")
         match query.data.split("_"):
@@ -432,23 +425,29 @@ class OutageBot:
             case [BotCommands.UNSUBSCRIBE.value, group]:
                 await self.unsubscribe_action(update.effective_user.id, group, callback)
 
-    def show_help(self) -> None:
+    def _show_help(self) -> None:
         users = SqlService.get_all_users()
+
+        async def message_func(context: ContextTypes.DEFAULT_TYPE) -> None:
+            await context.bot.send_message(
+                chat_id=context.job.chat_id, text=context.job.data
+            )
+
         for user in users:
             if user.show_help:
                 self.app.job_queue.run_once(
-                    self.message,
+                    message_func,
                     name=str(user.tg_id),
-                    when=datetime.now(tz=config.tz) + timedelta(minutes=1),
+                    when=1,
                     data="The bot has been updated, to see help, try /start",
                     chat_id=user.tg_id,
                 )
                 SqlService.update_user(user.tg_id, show_help=False)
 
-    def create_jobs(self) -> None:
+    def _create_jobs(self) -> None:
         subs = SqlService.get_all_subs()
         for sub in subs:
-            self.schedule_notification_job(sub.user, sub.group.group_name)
+            self._schedule_notification_job(sub.user, sub.group.group_name)
 
 
 def main(token: str) -> None:
@@ -462,7 +461,7 @@ def main(token: str) -> None:
     today_handler = CommandHandler("today", outage_bot.today_command)
     tomorrow_handler = CommandHandler("tomorrow", outage_bot.tomorrow_command)
     jobs_handler = CommandHandler("jobs", outage_bot.jobs_command)
-    application.add_handler(CallbackQueryHandler(outage_bot.button))
+    application.add_handler(CallbackQueryHandler(outage_bot.keyboard_handler))
     application.add_handler(start_handler)
     application.add_handler(subscribe_handler)
     application.add_handler(unsubscribe_handler)
@@ -471,6 +470,6 @@ def main(token: str) -> None:
     application.add_handler(stop_handler)
     application.add_handler(today_handler)
     application.add_handler(tomorrow_handler)
-    outage_bot.create_jobs()
-    outage_bot.show_help()
+    outage_bot._create_jobs()
+    outage_bot._show_help()
     application.run_polling()

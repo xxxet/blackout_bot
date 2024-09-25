@@ -57,7 +57,7 @@ class SqlTimeFinder:
         change_h, hours_to_change = self.__look_for_change_in_week(
             start_time.weekday(), start_time.hour
         )
-        zone_change_time = start_time.replace(minute=0) + timedelta(
+        zone_change_time = start_time.replace(minute=0, second=0) + timedelta(
             hours=hours_to_change
         )
         new_zone = change_h.zone.zone_name

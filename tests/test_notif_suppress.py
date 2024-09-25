@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 from assertpy import soft_assertions, assert_that
 from freezegun import freeze_time
@@ -7,9 +5,8 @@ from freezegun import freeze_time
 import src.tg.outage_bot as outage
 from src.sql.remind_obj import RemindObj
 from src.sql.sql_service import SqlService
+from tests import in_dateformat
 from tests.mock_utils import MockContext, MockBot, MockApplication
-
-d_format = "%Y-%m-%d %H:%M:%S %z"
 
 
 class TestOutageBot:
@@ -31,8 +28,8 @@ class TestOutageBot:
             group="group5",
             old_zone="white",
             new_zone="black",
-            change_time=datetime.strptime(change_time, d_format),
-            remind_time=datetime.strptime(remind_time, d_format),
+            change_time=in_dateformat(change_time),
+            remind_time=in_dateformat(remind_time),
             notify_now=False,
         )
 
@@ -40,24 +37,24 @@ class TestOutageBot:
         "reminder_before,reminder_after",
         [
             (
-                ("2024-08-19 22:59:59 +0300", "2024-08-19 22:50:59 +0300"),
-                ("2024-08-19 22:59:59 +0300", "2024-08-19 22:50:59 +0300"),
+                ("08-19-2024 22:59:59 +0300", "08-19-2024 22:50:59 +0300"),
+                ("08-19-2024 22:59:59 +0300", "08-19-2024 22:50:59 +0300"),
             ),
             (
-                ("2024-08-19 23:01:00 +0300", "2024-08-19 23:00:00 +0300"),
-                ("2024-08-20 09:00:00 +0300", "2024-08-20 08:45:00 +0300"),
+                ("08-19-2024 23:01:00 +0300", "08-19-2024 23:00:00 +0300"),
+                ("08-20-2024 09:00:00 +0300", "08-20-2024 08:45:00 +0300"),
             ),
             (
-                ("2024-08-20 07:59:59 +0300", "2024-08-20 07:59:59 +0300"),
-                ("2024-08-20 09:00:00 +0300", "2024-08-20 08:45:00 +0300"),
+                ("08-20-2024 07:59:59 +0300", "08-20-2024 07:59:59 +0300"),
+                ("08-20-2024 09:00:00 +0300", "08-20-2024 08:45:00 +0300"),
             ),
             (
-                ("2024-08-20 08:00:01 +0300", "2024-08-20 08:00:01 +0300"),
-                ("2024-08-20 08:00:01 +0300", "2024-08-20 08:00:01 +0300"),
+                ("08-20-2024 08:00:01 +0300", "08-20-2024 08:00:01 +0300"),
+                ("08-20-2024 08:00:01 +0300", "08-20-2024 08:00:01 +0300"),
             ),
         ],
     )
-    @freeze_time("2024-08-19 20:00:00")
+    @freeze_time("08-19-2024 23:00:00 +0300")
     @pytest.mark.asyncio
     async def test_enable_suppress(
         self,
@@ -71,7 +68,7 @@ class TestOutageBot:
 
         SqlService.update_user(chat_id, suppress_night=False)
         context.job_queue.run_once(
-            self.bot.notification,
+            self.bot._notification,
             name=str(chat_id),
             when=reminder_before_obj.remind_time,
             data=reminder_before_obj,
@@ -92,24 +89,24 @@ class TestOutageBot:
         "reminder_before,reminder_after",
         [
             (
-                ("2024-08-19 22:59:59 +0300", "2024-08-19 22:59:59 +0300"),
-                ("2024-08-19 22:59:59 +0300", "2024-08-19 22:59:59 +0300"),
+                ("08-19-2024 22:59:59 +0300", "08-19-2024 22:59:59 +0300"),
+                ("08-19-2024 22:59:59 +0300", "08-19-2024 22:59:59 +0300"),
             ),
             (
-                ("2024-08-19 23:00:00 +0300", "2024-08-19 23:00:00 +0300"),
-                ("2024-08-19 23:00:00 +0300", "2024-08-19 23:00:00 +0300"),
+                ("08-19-2024 23:00:00 +0300", "08-19-2024 23:00:00 +0300"),
+                ("08-19-2024 23:00:00 +0300", "08-19-2024 23:00:00 +0300"),
             ),
             (
-                ("2024-08-20 07:59:59 +0300", "2024-08-20 07:59:59 +0300"),
-                ("2024-08-20 07:59:59 +0300", "2024-08-20 07:59:59 +0300"),
+                ("08-20-2024 07:59:59 +0300", "08-20-2024 07:59:59 +0300"),
+                ("08-20-2024 07:59:59 +0300", "08-20-2024 07:59:59 +0300"),
             ),
             (
-                ("2024-08-20 08:00:00 +0300", "2024-08-20 08:00:00 +0300"),
-                ("2024-08-20 00:00:00 +0300", "2024-08-19 23:45:00 +0300"),
+                ("08-20-2024 08:00:00 +0300", "08-20-2024 08:00:00 +0300"),
+                ("08-20-2024 00:00:00 +0300", "08-19-2024 23:45:00 +0300"),
             ),
         ],
     )
-    @freeze_time("2024-08-19 20:00:00")
+    @freeze_time("08-19-2024 23:00:00 +0300")
     @pytest.mark.asyncio
     async def test_disable_suppress(
         self,
@@ -123,7 +120,7 @@ class TestOutageBot:
 
         SqlService.update_user(chat_id, suppress_night=True)
         context.job_queue.run_once(
-            self.bot.notification,
+            self.bot._notification,
             name=str(chat_id),
             when=reminder_before_obj.remind_time,
             data=reminder_before_obj,

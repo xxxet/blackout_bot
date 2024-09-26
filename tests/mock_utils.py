@@ -4,6 +4,8 @@ from typing import Optional, Union, Any
 from telegram._utils.types import JSONDict
 from telegram.ext._utils.types import JobCallback, CCT
 
+from src.sql.remind_obj import RemindObj
+
 
 class Job:
     def __init__(self, next_run_time: Union[float, datetime]):
@@ -33,7 +35,7 @@ class MockJob:
     def __init__(
         self,
         name: Optional[str],
-        data: Optional[object],
+        data: RemindObj,
         chat_id: Optional[int],
         when: Union[float, datetime],
     ):
@@ -56,7 +58,7 @@ class MockJobQueue:
         self,
         callback: JobCallback[CCT],
         when: Union[float, datetime],
-        data: Optional[object] = None,
+        data: RemindObj,
         name: Optional[str] = None,
         chat_id: Optional[int] = None,
         user_id: Optional[int] = None,

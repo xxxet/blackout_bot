@@ -19,18 +19,6 @@ class MockBot:
         self.sent_messages.append({"chat_id": chat_id, "text": text})
 
 
-class MockContext:
-    def __init__(self, bot: MockBot):
-        self.bot = bot
-        self.job_queue = MockJobQueue(bot)
-
-
-class MockApplication:
-    def __init__(self, context: MockContext):
-        self.context = context
-        self.job_queue = context.job_queue
-
-
 class MockJob:
     def __init__(
         self,
@@ -70,3 +58,19 @@ class MockJobQueue:
 
     def get_jobs_by_name(self, name: str) -> list[MockJob]:
         return list(filter(lambda job: job.name == name, self.jobs))
+
+
+class MockContext:
+    def __init__(self, bot: MockBot):
+        self.bot = bot
+        self.job_queue = MockJobQueue(bot)
+
+    @property
+    def job(self) -> MockJob:
+        return self.job_queue.jobs[-1]
+
+
+class MockApplication:
+    def __init__(self, context: MockContext):
+        self.context = context
+        self.job_queue = context.job_queue

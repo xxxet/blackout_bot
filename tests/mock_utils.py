@@ -74,3 +74,13 @@ class MockApplication:
     def __init__(self, context: MockContext):
         self.context = context
         self.job_queue = context.job_queue
+
+
+class EffectiveUserMock:
+    def __init__(self, user_id: int):
+        self.id = user_id
+
+
+class MockUpdate:
+    def __init__(self, user_id: int):
+        self.effective_user = EffectiveUserMock(user_id)

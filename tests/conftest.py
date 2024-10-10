@@ -9,6 +9,7 @@ from tests.mock_utils import MockContext, MockApplication, MockBot
 
 DATE_FORMAT = "%m-%d-%Y %H:%M:%S %z"
 GROUP_5 = "group5"
+GROUP_4 = "group4"
 
 
 @pytest.fixture
@@ -24,8 +25,9 @@ def context() -> MockContext:
 @pytest.fixture
 def group5_bot(chat_id: int, context: MockContext) -> OutageBot:
     bot = OutageBot(MockApplication(context))
-    SqlService.update_user(chat_id, suppress_night=False, remind_before=15)
+    SqlService.delete_user_with_subs(chat_id)
     SqlService.subscribe_user(chat_id, GROUP_5)
+    SqlService.update_user(chat_id, suppress_night=False, remind_before=15)
     return bot
 
 

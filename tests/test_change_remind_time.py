@@ -53,14 +53,16 @@ class TestChangeRemindTime:
         remind_time: str,
     ) -> None:
         context.job_queue.run_once(
-            group5_bot._notification,
+            group5_bot.actions._notification,
             name=str(chat_id),
             when=reminder_before.remind_time,
             data=reminder_before,
             chat_id=chat_id,
         )
 
-        await group5_bot.upd_notify_time_action(chat_id, str(remind_time), context)
+        await group5_bot.actions.upd_notify_time_action(
+            chat_id, str(remind_time), context
+        )
 
         running_jobs = [job for job in context.job_queue.jobs if job.removed is False]
         with soft_assertions():

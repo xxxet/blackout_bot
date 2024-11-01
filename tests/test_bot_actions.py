@@ -15,7 +15,7 @@ class TestTimeFinder:
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
         SqlService.delete_subs_for_user_group(chat_id, GROUP_5)
-        await group5_bot.subscribe_action(chat_id, GROUP_5, context)
+        await group5_bot.actions.subscribe_action(chat_id, GROUP_5, context)
         subs = SqlService.get_subs_for_user(chat_id)
         with soft_assertions():
             assert_that(subs).extracting("group").extracting("group_name").contains(
@@ -30,7 +30,7 @@ class TestTimeFinder:
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
         SqlService.subscribe_user(chat_id, GROUP_5)
-        await group5_bot.subscribe_action(chat_id, GROUP_5, context)
+        await group5_bot.actions.subscribe_action(chat_id, GROUP_5, context)
         subs = SqlService.get_subs_for_user(chat_id)
         with soft_assertions():
             assert_that(subs).extracting("group").extracting("group_name").contains(
@@ -45,7 +45,7 @@ class TestTimeFinder:
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
         SqlService.delete_subs_for_user_group(chat_id, GROUP_5)
-        await group5_bot.unsubscribe_action(chat_id, GROUP_5, context)
+        await group5_bot.actions.unsubscribe_action(chat_id, GROUP_5, context)
         subs = SqlService.get_subs_for_user(chat_id)
         assert_that(subs).extracting("group").extracting("group_name").does_not_contain(
             GROUP_5
@@ -55,8 +55,8 @@ class TestTimeFinder:
     async def test_stop(
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
-        await group5_bot.subscribe_action(chat_id, GROUP_4, context)
-        await group5_bot.stop_command(MockUpdate(chat_id), context)
+        await group5_bot.actions.subscribe_action(chat_id, GROUP_4, context)
+        await group5_bot.stop_handler(MockUpdate(chat_id), context)
         subs = SqlService.get_subs_for_user(chat_id)
         assert_that(subs).is_length(0)
 
@@ -65,7 +65,7 @@ class TestTimeFinder:
     async def test_today(
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
-        await group5_bot.today_command(MockUpdate(chat_id), context)
+        await group5_bot.today_handler(MockUpdate(chat_id), context)
         assert_that(context.bot.sent_messages).extracting("text").contains(
             f"Schedule for Monday for {GROUP_5}:\n🌚 00:00: black\n"
             "🌥 02:00: grey\n💡 05:00: white\n"
@@ -79,7 +79,7 @@ class TestTimeFinder:
     async def test_tomorrow(
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
-        await group5_bot.tomorrow_command(MockUpdate(chat_id), context)
+        await group5_bot.tomorrow_handler(MockUpdate(chat_id), context)
         assert_that(context.bot.sent_messages).extracting("text").contains(
             f"Schedule for Tuesday for {GROUP_5}:\n"
             "🌚 00:00: black\n🌥 03:00: grey\n"

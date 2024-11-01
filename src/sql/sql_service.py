@@ -1,4 +1,3 @@
-from datetime import time
 from typing import List
 from typing import Optional
 from sqlalchemy import func, and_, over
@@ -11,7 +10,6 @@ from src.sql.models.hour import Hour
 from src.sql.models.subscription import Subscription
 from src.sql.models.user import User
 from src.sql.models.zone import Zone
-from src.sql.remind_obj import RemindObj
 
 
 class ZoneRepo:
@@ -357,11 +355,4 @@ class SqlService:
                 .group_by("grp_zone", sub_q.c.zone_id)
                 .order_by(sub_q.c.hour)
             )
-            outage_hours_result = outage_hours_query.all()
-            return [
-                (
-                    f"{RemindObj.symbol(row.zone_name)} {time(hour=row.hour, tzinfo=config.tz).strftime("%H:%M")}:"
-                    f" {row.zone_name}"
-                )
-                for row in outage_hours_result
-            ]
+            return outage_hours_query.all()

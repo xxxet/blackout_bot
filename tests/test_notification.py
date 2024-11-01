@@ -25,13 +25,13 @@ class TestTimeFinder:
         )
 
         context.job_queue.run_once(
-            group5_bot._notification,
+            group5_bot.actions._notification,
             name=str(chat_id),
             when=reminder.remind_time,
             data=reminder,
             chat_id=chat_id,
         )
-        await group5_bot._notification(context=context)
+        await group5_bot.actions._notification(context=context)
         expected_remind = RemindObj(
             group="group5",
             old_zone="white",
@@ -47,8 +47,8 @@ class TestTimeFinder:
     async def test_status_command(
         self, chat_id: int, group5_bot: OutageBot, context: MockContext
     ) -> None:
-        await group5_bot.subscribe_action(chat_id, GROUP_4, context)
-        await group5_bot.status_command(MockUpdate(chat_id), context)
+        await group5_bot.actions.subscribe_action(chat_id, GROUP_4, context)
+        await group5_bot.status_handler(MockUpdate(chat_id), context)
         with soft_assertions():
             assert_that(context.bot.sent_messages).contains(
                 {

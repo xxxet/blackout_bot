@@ -306,7 +306,7 @@ class SqlService:
             return subs_repo.get_subs_for_user(user_repo.get_user(tg_id))
 
     @staticmethod
-    def get_schedule_for(day: str, group: str) -> list[str]:
+    def get_schedule_for(day: str, group: str) -> list:
         """
         query:
             select zone_name, hour, count(*)
